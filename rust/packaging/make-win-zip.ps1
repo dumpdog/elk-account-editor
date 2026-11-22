@@ -8,9 +8,11 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$stage = Join-Path $OutDir $Name
+# Stage in a temp folder, never inside $OutDir: people run the app from an unzipped copy in dist, and its "ElkEditor data" library folder lives next to the exe.
+$stageRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("elk-stage-" + [guid]::NewGuid().ToString("N"))
+$stage = Join-Path $stageRoot $Name
+New-Item -ItemType Directory -Force $OutDir | Out-Null
 $zip = Join-Path $OutDir "$Name.zip"
-if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
 if (Test-Path $zip) { Remove-Item -Force $zip }
 New-Item -ItemType Directory -Force $stage | Out-Null
 Copy-Item $Exe (Join-Path $stage "ElkAccountEditor.exe")
@@ -19,4 +21,5 @@ if ($Cli -ne "") { Copy-Item $Cli (Join-Path $stage "elk.exe") }
 $text = (Get-Content -Raw (Join-Path $here "README-windows.txt")) -replace "`r?`n", "`r`n"
 [System.IO.File]::WriteAllText((Join-Path $stage "README.txt"), $text, (New-Object System.Text.UTF8Encoding($false)))
 Compress-Archive -Path $stage -DestinationPath $zip -Force
+Remove-Item -Recurse -Force $stageRoot -ErrorAction SilentlyContinue
 Write-Host "Done: $zip"

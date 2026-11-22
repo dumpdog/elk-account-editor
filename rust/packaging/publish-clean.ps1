@@ -58,8 +58,11 @@ function Invoke-Git {
     # simple function on purpose: dashed arguments such as -q or -B pass through untouched
     $dir = [string]$args[0]
     $rest = @($args | Select-Object -Skip 1)
+    # Windows PowerShell 5.1 turns git's stderr progress lines into errors under -Stop: relax it for the native call only
+    $prev = $ErrorActionPreference; $ErrorActionPreference = "Continue"
     $out = & git -C $dir @rest 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "git $($rest -join ' ') failed in ${dir}: $out" }
+    $code = $LASTEXITCODE; $ErrorActionPreference = $prev
+    if ($code -ne 0) { throw "git $($rest -join ' ') failed in ${dir}: $out" }
     return $out
 }
 
