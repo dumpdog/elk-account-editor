@@ -162,13 +162,13 @@ jobs:
       - uses: actions/download-artifact@v4.3.0
         with:
           path: artifacts
-      # Two downloads on the release page: Windows, and one universal Mac zip (Apple Silicon and Intel).
-      # The in-app updater falls back to the universal zip on Apple Silicon.
+      # Two downloads on the release page: Windows, and the Apple Silicon Mac zip (Apple is ending Intel Mac support).
+      # The universal2 zip is still built by the macos job and kept as a workflow artifact for anyone who needs an Intel Mac build.
       - name: Collect the zips and checksum them
         run: |
           mkdir release
           cp artifacts/ElkAccountEditor-win-x64/ElkAccountEditor-win-x64.zip \
-             artifacts/ElkAccountEditor-mac-universal2/ElkAccountEditor-mac-universal2.zip release/
+             artifacts/ElkAccountEditor-mac-arm64/ElkAccountEditor-mac-arm64.zip release/
           (cd release && sha256sum *.zip > SHA256SUMS && cat SHA256SUMS)
       - name: Publish the release
         env:
