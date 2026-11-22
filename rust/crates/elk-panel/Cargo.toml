@@ -1,0 +1,15 @@
+[package]
+name = "elk-panel"
+version = "0.1.0"
+edition = "2021"
+description = "Panel sync, shared live session and the panel/live HTTP route logic of the Elk account editor (Rust port of PanelSync.cs, LivePanel.cs and the panel routes of Program.cs)."
+publish = false
+
+[dependencies]
+elk-core = { path = "../elk-core" }
+elk-account = { path = "../elk-account" }
+serde_json = "1"
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+dirs = "7"
+
+[workspace]

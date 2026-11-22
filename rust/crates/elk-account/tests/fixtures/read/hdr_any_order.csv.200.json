@@ -1,0 +1,1 @@
+{"rows":[{"n":1,"name":"Front Door","definition":1,"type":1,"area":1},{"n":2,"name":"Garage","definition":3,"type":0,"area":2},{"n":3,"name":"Kitchen","definition":10,"type":4,"area":3}],"columns":["Zone","Name","Definition","Type","Area"],"warnings":[]}

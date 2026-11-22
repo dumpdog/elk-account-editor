@@ -1,0 +1,11 @@
+﻿zone block found at line 623: 64 stored zones
+update zone   1: 'Front Entry Door' => 'Front Door' def 1 type 0 area 1
+update zone   2: 'Garage Entry Doo' => 'Garage Door' def 1 type 0 area 1
+update zone   3: 'Hall Motion' => 'Living Rm Motion' def 3 type 0 area 1
+update zone   4: 'Living Rm Glass' => 'Kitchen Window' def 2 type 0 area 1
+update zone   5: 'Kitchen Motion' => 'Back Door' def 1 type 0 area 2
+update zone   6: 'Living Room Wnds' => 'Basement Smoke' def 16 type 0 area 1
+update zone  17: 'Johnny's Room' => 'Garage Smoke' def 16 type 0 area 1
+add    zone 186: 'Shed Glassbreak' def 4 type 5 area 3
+7 updated, 1 added; zone block now holds 65 zones
+wrote <repo>\rust\crates\elk-account\tests\fixtures\cli\export-zones.out. In ElkRP use File > Import Account.

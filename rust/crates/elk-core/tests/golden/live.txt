@@ -1,0 +1,220 @@
+areas 000000000000000025000000000000004A000000000000006F000000000000009400000000000000B900000000000000DE00000000000000030000000000000028000000
+1 true false 1 armed away false
+2 true true 2 armed stay false
+3 true false 3 armed stay instant true
+4 true false 4 armed night false
+5 true false 5 armed night instant false
+6 true false 6 armed vacation false
+7 false false 0 disarmed true
+8 true true 1 armed away false
+zones 00000000080F161D242B323940474E555C636A71787F868D949BA2A9B0B7BEC5CCD3DAE1E8EFF6FD040B121920272E353C434A51585F666D747B828990979EA5ACB3BAC1C8CFD6DDE4EBF2F900070E151C232A31383F464D545B626970777E858C939AA1A8AFB6BDC4CBD2D9E0E7EEF5FC030A11181F262D343B424950575E656C737A81888F969DA4ABB2B9C0C7CED5DCE3EAF1F8FF060D141B222930373E454C535A61686F767D848B9299A0A7AEB5BCC3CAD1D8DFE6EDF4FB020910171E252C333A41484F565D646B727980878E959CA3AAB1 000000000306090C0F1215181B1E2124272A2D303336393C3F4245484B4E5154575A5D606366696C6F7275787B7E8184878A8D909396999C9FA2A5A8ABAEB1B4B7BABDC0C3C6C9CCCFD2D5D8DBDEE1E4E7EAEDF0F3F6F9FCFF0205080B0E1114171A1D202326292C2F3235383B3E4144474A4D505356595C5F6265686B6E7174777A7D808386898C8F9295989B9EA1A4A7AAADB0B3B6B9BCBFC2C5C8CBCED1D4D7DADDE0E3E6E9ECEFF2F5F8FBFE0104070A0D101316191C1F2225282B2E3134373A3D404346494C4F5255585B5E6164676A6D70
+1|Violated|false|false|N/A|0.3
+2|Violated|false|false|Short (-)|0.6
+3|Trouble|false|true|EOLR (=)|0.9
+4|Violated|false|true|Open (+)|1.2
+5|Trouble|true|false|N/A|1.5
+6|Violated|true|false|Short (-)|1.8
+7|Normal|true|true|EOLR (=)|2.1
+8|Violated|true|true|Open (+)|2.4
+9|Normal|false|false|N/A|2.7
+10|Trouble|false|false|Short (-)|3
+11|Violated|false|false|EOLR (=)|3.3
+12|Trouble|false|true|Open (+)|3.6
+13|Violated|false|true|N/A|3.9
+14|Normal|true|false|Short (-)|4.2
+15|Violated|true|false|EOLR (=)|4.5
+16|Normal|true|true|Open (+)|4.8
+17|Violated|true|true|N/A|5.1
+18|Violated|true|true|Short (-)|5.4
+19|Trouble|false|false|EOLR (=)|5.7
+20|Violated|false|false|Open (+)|6
+21|Trouble|false|true|N/A|6.3
+22|Violated|false|true|Short (-)|6.6
+23|Normal|true|false|EOLR (=)|6.9
+24|Violated|true|false|Open (+)|7.2
+25|Normal|true|true|N/A|7.5
+26|Trouble|true|true|Short (-)|7.8
+27|Violated|true|true|EOLR (=)|8.1
+28|Trouble|false|false|Open (+)|8.4
+29|Violated|false|false|N/A|8.7
+30|Normal|false|true|Short (-)|9
+31|Violated|false|true|EOLR (=)|9.3
+32|Normal|true|false|Open (+)|9.6
+33|Violated|true|false|N/A|9.9
+34|Violated|true|false|Short (-)|10.2
+35|Trouble|true|true|EOLR (=)|10.5
+36|Violated|true|true|Open (+)|10.8
+37|Trouble|false|false|N/A|11.1
+38|Violated|false|false|Short (-)|11.4
+39|Normal|false|true|EOLR (=)|11.7
+40|Violated|false|true|Open (+)|12
+41|Normal|true|false|N/A|12.3
+42|Trouble|true|false|Short (-)|12.6
+43|Violated|true|false|EOLR (=)|12.9
+44|Trouble|true|true|Open (+)|13.2
+45|Violated|true|true|N/A|13.5
+46|Normal|false|false|Short (-)|13.8
+47|Violated|false|false|EOLR (=)|14.1
+48|Normal|false|true|Open (+)|14.4
+49|Violated|false|true|N/A|14.7
+50|Violated|false|true|Short (-)|15
+51|Trouble|true|false|EOLR (=)|15.3
+52|Violated|true|false|Open (+)|15.6
+53|Trouble|true|true|N/A|15.9
+54|Violated|true|true|Short (-)|16.2
+55|Normal|false|false|EOLR (=)|16.5
+56|Violated|false|false|Open (+)|16.8
+57|Normal|false|true|N/A|17.1
+58|Trouble|false|true|Short (-)|17.4
+59|Violated|false|true|EOLR (=)|17.7
+60|Trouble|true|false|Open (+)|18
+61|Violated|true|false|N/A|18.3
+62|Normal|true|true|Short (-)|18.6
+63|Violated|true|true|EOLR (=)|18.9
+64|Normal|false|false|Open (+)|19.2
+65|Violated|false|false|N/A|19.5
+66|Violated|false|false|Short (-)|19.8
+67|Trouble|false|true|EOLR (=)|20.1
+68|Violated|false|true|Open (+)|20.4
+69|Trouble|true|false|N/A|20.7
+70|Violated|true|false|Short (-)|21
+71|Normal|true|true|EOLR (=)|21.3
+72|Violated|true|true|Open (+)|21.6
+73|Normal|false|false|N/A|21.9
+74|Trouble|false|false|Short (-)|22.2
+75|Violated|false|false|EOLR (=)|22.5
+76|Trouble|false|true|Open (+)|22.8
+77|Violated|false|true|N/A|23.1
+78|Normal|true|false|Short (-)|23.4
+79|Violated|true|false|EOLR (=)|23.7
+80|Normal|true|true|Open (+)|24
+81|Violated|true|true|N/A|24.3
+82|Violated|true|true|Short (-)|24.6
+83|Trouble|false|false|EOLR (=)|24.9
+84|Violated|false|false|Open (+)|25.2
+85|Trouble|false|true|N/A|25.5
+86|Violated|false|true|Short (-)|0.2
+87|Normal|true|false|EOLR (=)|0.5
+88|Violated|true|false|Open (+)|0.8
+89|Normal|true|true|N/A|1.1
+90|Trouble|true|true|Short (-)|1.4
+91|Violated|true|true|EOLR (=)|1.7
+92|Trouble|false|false|Open (+)|2
+93|Violated|false|false|N/A|2.3
+94|Normal|false|true|Short (-)|2.6
+95|Violated|false|true|EOLR (=)|2.9
+96|Normal|true|false|Open (+)|3.2
+97|Violated|true|false|N/A|3.5
+98|Violated|true|false|Short (-)|3.8
+99|Trouble|true|true|EOLR (=)|4.1
+100|Violated|true|true|Open (+)|4.4
+101|Trouble|false|false|N/A|4.7
+102|Violated|false|false|Short (-)|5
+103|Normal|false|true|EOLR (=)|5.3
+104|Violated|false|true|Open (+)|5.6
+105|Normal|true|false|N/A|5.9
+106|Trouble|true|false|Short (-)|6.2
+107|Violated|true|false|EOLR (=)|6.5
+108|Trouble|true|true|Open (+)|6.8
+109|Violated|true|true|N/A|7.1
+110|Normal|false|false|Short (-)|7.4
+111|Violated|false|false|EOLR (=)|7.7
+112|Normal|false|true|Open (+)|8
+113|Violated|false|true|N/A|8.3
+114|Violated|false|true|Short (-)|8.6
+115|Trouble|true|false|EOLR (=)|8.9
+116|Violated|true|false|Open (+)|9.2
+117|Trouble|true|true|N/A|9.5
+118|Violated|true|true|Short (-)|9.8
+119|Normal|false|false|EOLR (=)|10.1
+120|Violated|false|false|Open (+)|10.4
+121|Normal|false|true|N/A|10.7
+122|Trouble|false|true|Short (-)|11
+123|Violated|false|true|EOLR (=)|11.3
+124|Trouble|true|false|Open (+)|11.6
+125|Violated|true|false|N/A|11.9
+126|Normal|true|true|Short (-)|12.2
+127|Violated|true|true|EOLR (=)|12.5
+128|Normal|false|false|Open (+)|12.8
+129|Violated|false|false|N/A|13.1
+130|Violated|false|false|Short (-)|13.4
+131|Trouble|false|true|EOLR (=)|13.7
+132|Violated|false|true|Open (+)|14
+133|Trouble|true|false|N/A|14.3
+134|Violated|true|false|Short (-)|14.6
+135|Normal|true|true|EOLR (=)|14.9
+136|Violated|true|true|Open (+)|15.2
+137|Normal|false|false|N/A|15.5
+138|Trouble|false|false|Short (-)|15.8
+139|Violated|false|false|EOLR (=)|16.1
+140|Trouble|false|true|Open (+)|16.4
+141|Violated|false|true|N/A|16.7
+142|Normal|true|false|Short (-)|17
+143|Violated|true|false|EOLR (=)|17.3
+144|Normal|true|true|Open (+)|17.6
+145|Violated|true|true|N/A|17.9
+146|Violated|true|true|Short (-)|18.2
+147|Trouble|false|false|EOLR (=)|18.5
+148|Violated|false|false|Open (+)|18.8
+149|Trouble|false|true|N/A|19.1
+150|Violated|false|true|Short (-)|19.4
+151|Normal|true|false|EOLR (=)|19.7
+152|Violated|true|false|Open (+)|20
+153|Normal|true|true|N/A|20.3
+154|Trouble|true|true|Short (-)|20.6
+155|Violated|true|true|EOLR (=)|20.9
+156|Trouble|false|false|Open (+)|21.2
+157|Violated|false|false|N/A|21.5
+158|Normal|false|true|Short (-)|21.8
+159|Violated|false|true|EOLR (=)|22.1
+160|Normal|true|false|Open (+)|22.4
+161|Violated|true|false|N/A|22.7
+162|Violated|true|false|Short (-)|23
+163|Trouble|true|true|EOLR (=)|23.3
+164|Violated|true|true|Open (+)|23.6
+165|Trouble|false|false|N/A|23.9
+166|Violated|false|false|Short (-)|24.2
+167|Normal|false|true|EOLR (=)|24.5
+168|Violated|false|true|Open (+)|24.8
+169|Normal|true|false|N/A|25.1
+170|Trouble|true|false|Short (-)|25.4
+171|Violated|true|false|EOLR (=)|0.1
+172|Trouble|true|true|Open (+)|0.4
+173|Violated|true|true|N/A|0.7
+174|Normal|false|false|Short (-)|1
+175|Violated|false|false|EOLR (=)|1.3
+176|Normal|false|true|Open (+)|1.6
+177|Violated|false|true|N/A|1.9
+178|Violated|false|true|Short (-)|2.2
+179|Trouble|true|false|EOLR (=)|2.5
+180|Violated|true|false|Open (+)|2.8
+181|Trouble|true|true|N/A|3.1
+182|Violated|true|true|Short (-)|3.4
+183|Normal|false|false|EOLR (=)|3.7
+184|Violated|false|false|Open (+)|4
+185|Normal|false|true|N/A|4.3
+186|Trouble|false|true|Short (-)|4.6
+187|Violated|false|true|EOLR (=)|4.9
+188|Trouble|true|false|Open (+)|5.2
+189|Violated|true|false|N/A|5.5
+190|Normal|true|true|Short (-)|5.8
+191|Violated|true|true|EOLR (=)|6.1
+192|Normal|false|false|Open (+)|6.4
+193|Violated|false|false|N/A|6.7
+194|Violated|false|false|Short (-)|7
+195|Trouble|false|true|EOLR (=)|7.3
+196|Violated|false|true|Open (+)|7.6
+197|Trouble|true|false|N/A|7.9
+198|Violated|true|false|Short (-)|8.2
+199|Normal|true|true|EOLR (=)|8.5
+200|Violated|true|true|Open (+)|8.8
+201|Normal|false|false|N/A|9.1
+202|Trouble|false|false|Short (-)|9.4
+203|Violated|false|false|EOLR (=)|9.7
+204|Trouble|false|true|Open (+)|10
+205|Violated|false|true|N/A|10.3
+206|Normal|true|false|Short (-)|10.6
+207|Violated|true|false|EOLR (=)|10.9
+208|Normal|true|true|Open (+)|11.2
+sys 0000000000000100000100000100000100000100000100000100000100000100000100000100000100000100000100000100000100000100
+Fire Alarm|Burglar Trouble/Alarm|Status item 8|Emergency Trouble/Alarm|Heat Trouble/Alarm|Fire 'Verified' Alarm|Dialer Communication Failure|Transmitter Low Battery|Status item 26|Input Expander Trouble|Status item 32|Flash Memory Error|Lost Transmitter Trouble|Status item 41|Status item 44|Status item 47|Status item 50

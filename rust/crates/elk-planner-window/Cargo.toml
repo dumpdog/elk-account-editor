@@ -1,0 +1,21 @@
+[package]
+name = "elk-planner-window"
+version = "0.1.0"
+edition = "2021"
+description = "Rust port of the Elk account editor's data bus planner and native window"
+
+[dependencies]
+base64 = "0.23.1"
+dirs = "7.0.0"
+serde_json = "1.0.154"
+
+[target.'cfg(any(windows, target_os = "macos"))'.dependencies]
+rfd = "0.18.0"
+tao = "0.37.3"
+wry = "0.57.3"
+
+# Menu bar for macOS: WKWebView needs an Edit menu for Cmd+C/V/X/A/Z to work, and Cmd+Q / Cmd+W need items.
+[target.'cfg(target_os = "macos")'.dependencies]
+muda = "0.21.2"
+
+[workspace]

@@ -1,0 +1,4 @@
+Name,Zone,Area,Type,Definition
+Front Door,1,Area 1,Normally Closed,Burglar Entry/Exit 1
+Garage,2,2,0,03
+  Kitchen ,Zone 003,Area 3,EOL Supervised on Open,Fire Alarm

@@ -1,0 +1,7 @@
+# Exports, fixtures and recorded cases are byte-exact (CRLF matters): never convert line endings
+sample/** -text
+rust/crates/*/tests/fixtures/** -text
+rust/app-cases/** -text
+rust/http-inputs.jsonl -text
+rust/app/assets/** -text
+*.xlsx binary

@@ -1,0 +1,39 @@
+# Builds and tests the editor and produces downloadable apps: a Windows zip and a macOS .dmg (ad-hoc signed; see port/packaging/make-mac-app.sh for real signing).
+# It only runs when started by hand (Actions tab > Build apps > Run workflow), so it never uses build minutes by surprise.
+name: Build C# apps (reference)
+on:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Test
+        run: dotnet test port/ElkPort.sln
+      - name: Publish
+        run: dotnet publish port/src/Elk.Editor -c Release -r win-x64 -o out/win -p:PublishSingleFile=true --self-contained
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ElkAccountEditor-win-x64
+          path: out/win/ElkAccountEditor.exe
+
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Publish
+        run: dotnet publish port/src/Elk.Editor -c Release -r osx-arm64 -o out/mac -p:PublishSingleFile=true --self-contained
+      - name: Make the app and disk image
+        working-directory: out
+        run: bash ../port/packaging/make-mac-app.sh mac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ElkAccountEditor-mac-arm64-dmg
+          path: out/Elk Account Editor.dmg

@@ -1,0 +1,6 @@
+target/
+target-agent-*/
+original-build/
+original-automation-src/
+original-automation-build/
+target-agent-auto/

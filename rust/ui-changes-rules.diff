@@ -1,0 +1,375 @@
+diff --git a/rust/app/assets/index.html b/rust/app/assets/index.html
+index 95ec93b..a2699d0 100644
+--- a/rust/app/assets/index.html
++++ b/rust/app/assets/index.html
+@@ -100,6 +100,10 @@
+   .subnav { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:10px; } .subnav button.on { background:var(--acc); color:#fff; border-color:var(--acc); } .subnav .cnt { margin-left:6px; font-size:11px; opacity:.8; }
+   .cols2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(380px,1fr)); gap:14px; align-items:start; } .cols2 h3 { margin:4px 0; font-size:14px; }
+   .vw { display:flex; gap:3px; } .vw input.t { width:84px; border-color:var(--row); } input.bad { border-color:var(--bad) !important; background:var(--bad-bg) !important; }
++  .rbar { flex-wrap:wrap; } .rtab td { vertical-align:top; } .rtab tr.rsel td { background:var(--soft); box-shadow:inset 0 0 0 1px var(--acc); } .rtab tr { cursor:default; }
++  .rtxt { white-space:normal; min-width:420px; font-family:ui-monospace,Consolas,monospace; font-size:12.5px; } .rtxt .rw { font-weight:600; } .rtxt .ra { padding-left:24px; } .rtxt .rt { padding-left:48px; }
++  .rcom { color:teal; } .rfoot { margin:8px 0; font-weight:600; } .rpart { border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:8px 0; } .rhead { display:flex; gap:8px; align-items:center; margin-bottom:6px; flex-wrap:wrap; }
++  .rprev { white-space:pre-wrap; min-height:2.4em; } #modal .box { width:min(940px,96vw); }
+   input.t.wide { width:460px; } input.t.mono { font-family:ui-monospace,monospace; }
+   .modal { position:fixed; inset:0; background:rgba(16,24,40,.45); display:none; align-items:center; justify-content:center; z-index:20; }
+   .modal .box { background:var(--card); color:var(--ink); border-radius:10px; padding:16px 18px; width:min(720px,94vw); max-height:88vh; overflow:auto; }
+@@ -1583,23 +1587,344 @@ function autoTexts(p, A) {
+     tbl(el('tr', {}, ['#', 'Text', 'Packets', 'Used by rules', ''].map(h => el('th', {}, h))), rows));
+ }
+ 
+-// rules: a structural view with comments, delete and reorder; the wording of most triggers and results is ElkRP's WhenSelect (not reproduced)
+-function autoRules(p, A) {
+-  const hex = a => a.map(v => v.toString(16).padStart(2, '0')).join(' ');
+-  const rows = [];
++// ---- rules: ElkRP's Rules page (English wording from the server, New / Edit / Cut / Copy / Paste / Find / Delete) -------------------------------
++// A rule is WHENEVER (trigger, bytes 0-3 of the first packet) [AND conditions, bytes 0-3 of the next packets] THEN (result, bytes 4-7 of the packet
++// that ends the AND chain, further THENs in packets that start with 144) with an optional FOR packet (starts with 152) after a lighting THEN.
++// The wording comes from /api/rules/english (the Rust port of ElkRP's WhenSelect text builders); this page only builds and reads the packets.
++const RUL = { sel: new Set(), last: -1, q: '', clip: null, eng: null, sig: '', err: '', box: null };
++const rA = () => MODEL.automation;
++const h16 = n => [n >> 8, n & 255];
++const pick = (list, v) => { const o = list.find(x => x[0] === v); return o ? o[1] : String(v); };
++const NM = {
++  zone: n => { const z = MODEL.zones.find(z => z.n === n); return z ? `${z.name} (Zn ${n})` : `Zone ${n}`; },
++  area: n => { const a = MODEL.areas.find(a => a.n === n); return a ? `${a.name} (Area ${n})` : `Area ${n}`; },
++  keypad: n => { const a = MODEL.keypads.find(a => a.n === n); return a ? `${a.name} (KP ${n})` : `KP ${n}`; },
++  user: n => { if (n === 201) return '"Installer" (User 201)'; if (n === 202) return '"ElkRP" (User 202)'; const a = MODEL.users.find(a => a.n === n); return a ? `${a.name} (User ${n})` : `User ${n}`; },
++  output: n => { const o = rA().outputs[n - 1]; return o && o.name ? `${o.name} (Out ${n})` : `Output ${n}`; },
++  task: n => { const o = rA().tasks[n - 1]; return o && o.name ? `${o.name} (Task ${n})` : `Task ${n}`; },
++  counter: n => { const o = rA().counters[n - 1]; return o ? `${o} (Counter ${n})` : `Counter ${n}`; },
++  tstat: n => { const o = rA().thermostats[n - 1]; return o ? `${o} (Tstat ${n})` : `Tstat ${n}`; },
++  custom: n => { const c = rA().customs[n - 1], k = n <= 12 ? `CO Timer ${n}` : `Cust Set ${n - 12}`; return c && c.name ? `${c.name} (${k})` : k; },
++  light: n => { const l = rA().lights[n - 1]; return l && l.name ? `${l.name} [${n} (${l.id})]` : `Lighting ${n} (${l ? l.id : n})`; },
++  vm: n => { const s = META.voiceMessages[n]; return s ? s.split('|').pop() : `Voice message ${n}`; },
++  phone: n => { const p = MODEL.phones.find(a => a.n === n); return p ? `${p.name || p.number} (Tel ${n})` : `Telephone ${n}`; },
++};
++const range1 = (n, f) => Array.from({ length: n }, (_, i) => [i + 1, f(i + 1)]);
++const FLD = {   // pick lists for item fields
++  zone: () => (MODEL.zones.length ? MODEL.zones.map(z => z.n) : range1(208, x => x).map(x => x[0])).map(n => [n, NM.zone(n)]),
++  area: () => [1, 2, 3, 4, 5, 6, 7, 8].map(n => [n, NM.area(n)]),
++  keypad: () => (MODEL.keypads.length ? MODEL.keypads.map(k => k.n) : range1(16, x => x).map(x => x[0])).map(n => [n, NM.keypad(n)]),
++  user: () => [...MODEL.users.map(u => u.n), 201, 202].map(n => [n, NM.user(n)]),
++  output: () => range1(64, NM.output), task: () => range1(32, NM.task), counter: () => range1(64, NM.counter), tstat: () => range1(16, NM.tstat),
++  custom: () => range1(32, NM.custom), light: () => range1(256, NM.light), phone: () => range1(8, NM.phone),
++  vm: () => range1(115, n => NM.vm(n)),
++};
++const CMP4 = [[1, 'equal to'], [2, 'not equal to'], [3, 'greater than'], [4, 'less than']];
++const CMPT = [[1, 'exactly'], [2, 'not'], [3, 'later than'], [4, 'earlier than']];
++const ZSTATE = [[2, 'Not secure (violated)'], [0, 'Secure (normal)'], [1, 'Troubled'], [3, 'Not secure - open loop'], [5, 'Not secure - shorted'], [10, 'Bypassed'], [11, 'Un-bypassed']];
++const ARMMODES = [[0, 'Disarm'], [1, 'Arm to Away'], [2, 'Arm to Stay'], [3, 'Arm to Stay Instant'], [4, 'Arm to Night'], [5, 'Arm to Night Instant'], [6, 'Arm to Vacation']];
++const LCMDS = [[3, 'Turn ON'], [4, 'Turn OFF'], [9, 'Set to a brightness (%)'], [5, 'Dim by steps'], [6, 'Brighten by steps'], [16, 'Toggle']];
++const THMODE = [[0, 'Off'], [1, 'Heat'], [2, 'Cool'], [3, 'Auto heat/cool']];
++const DOWS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
++const evWords = ev => (META.eventWords || {})[ev] || ['', '', '', '', '', '', '', ''];
++
++// Field kinds: pick:<list> select; sel:[[v,label]]; num:[min,max]; bits:<labels>; bool; event.
++// A kind is { id, label, fields:[{k,label,t,...}], def, build(v) -> bytes, parse(bytes) -> v | null }.
++const T = (id, label, fields, def, build, parse) => ({ id, label, fields, def, build, parse });
++const evField = { k: 'ev', label: 'Event', t: 'event' };
++const KINDS = {
++  trig: [
++    T('zone', 'A zone becomes ...', [{ k: 'z', label: 'Zone', t: 'pick', list: 'zone' }, { k: 's', label: 'State', t: 'sel', list: ZSTATE }], { z: 1, s: 2 },
++      v => v.s >= 10 ? [89, v.s === 10 ? 1 : 0, ...h16(5000 + v.z)] : [97, v.s, 0, v.z],
++      b => b[0] >> 3 === 12 && !(b[2] & 0x80) ? { z: b[3], s: b[1] } : (b[0] >> 3 === 11 && b[2] * 256 + b[3] > 5000 && b[2] * 256 + b[3] <= 5208 ? { z: b[2] * 256 + b[3] - 5000, s: b[1] ? 10 : 11 } : null)),
++    T('output', 'An output turns ON / OFF', [{ k: 'o', label: 'Output', t: 'pick', list: 'output' }, { k: 'on', label: 'Becomes', t: 'sel', list: [[1, 'ON'], [0, 'OFF']] }], { o: 1, on: 1 },
++      v => [89, v.on, ...h16(7000 + v.o)], b => b[0] >> 3 === 11 && b[2] * 256 + b[3] > 7000 && b[2] * 256 + b[3] <= 7064 ? { o: b[2] * 256 + b[3] - 7000, on: b[1] ? 1 : 0 } : null),
++    T('task', 'A task is activated', [{ k: 't', label: 'Task', t: 'pick', list: 'task' }], { t: 1 },
++      v => [89, 1, ...h16(2000 + v.t)], b => b[0] >> 3 === 11 && b[2] * 256 + b[3] > 2000 && b[2] * 256 + b[3] <= 2032 ? { t: b[2] * 256 + b[3] - 2000 } : null),
++    T('event', 'A system event (alarms, arming, keypad keys, ...)', [evField, { k: 'p', label: 'When it', t: 'edge' }], { ev: 1003, p: 1 },
++      v => [89, v.p ? 1 : 0, ...h16(v.ev)], b => b[0] >> 3 === 11 ? { ev: b[2] * 256 + b[3], p: b[1] ? 1 : 0 } : null),
++    T('time', 'The time of day is', [{ k: 'h', label: 'Hour (0-23)', t: 'num', min: 0, max: 23 }, { k: 'm', label: 'Minute', t: 'num', min: 0, max: 59 }], { h: 6, m: 0 },
++      v => [17, 0, v.h, v.m], b => b[0] === 17 && b[1] === 0 ? { h: b[2], m: b[3] } : null),
++    T('timecv', 'The time is a custom time of day', [{ k: 'c', label: 'Custom value', t: 'pick', list: 'custom' }], { c: 13 },
++      v => [17, v.c, 0, 0], b => b[0] === 17 && b[1] > 0 ? { c: b[1] & 0x7F } : null),
++    T('every', 'Every ... hours and minutes', [{ k: 'h', label: 'Hours', t: 'num', min: 0, max: 255 }, { k: 'm', label: 'Minutes', t: 'num', min: 0, max: 59 }], { h: 1, m: 0 },
++      v => [23, 0, v.h, v.m], b => b[0] === 23 ? { h: b[2], m: b[3] } : null),
++    T('everysec', 'Every ... seconds', [{ k: 's', label: 'Seconds (1-65535)', t: 'num', min: 1, max: 65535 }], { s: 30 },
++      v => [160, 0, ...h16(v.s)], b => b[0] === 160 ? { s: b[2] * 256 + b[3] } : null),
++    T('hour', 'The hour is', [{ k: 'h', label: 'Hour (0-23)', t: 'num', min: 0, max: 23 }], { h: 12 },
++      v => [25, v.h, 0, 0], b => b[0] === 25 && !(b[2] & 0x80) ? { h: b[1] } : null),
++    T('minute', 'The minute is', [{ k: 'm', label: 'Minute (0-59)', t: 'num', min: 0, max: 59 }], { m: 30 },
++      v => [33, v.m, 0, 0], b => b[0] === 33 && !(b[2] & 0x80) ? { m: b[1] } : null),
++    T('sun', 'Sunrise or sunset', [{ k: 'w', label: 'Event', t: 'sel', list: [[9, 'Sunrise'], [10, 'Sunset']] }, { k: 'o', label: 'Minutes before (-) or after (+)', t: 'num', min: -1000, max: 1000 }], { w: 10, o: 0 },
++      v => [v.w * 8 + 1, 0, ...h16(v.o < 0 ? 65536 + v.o : v.o)], b => (b[0] >> 3 === 9 || b[0] >> 3 === 10) ? { w: b[0] >> 3, o: b[2] > 127 ? b[2] * 256 + b[3] - 65536 : b[2] * 256 + b[3] } : null),
++    T('counter', 'A counter changes to ...', [{ k: 'c', label: 'Counter', t: 'pick', list: 'counter' }, { k: 'f', label: 'Value is', t: 'sel', list: [[1, 'any value'], [2, 'any value other than'], [3, 'a value greater than'], [4, 'a value less than']] }, { k: 'n', label: 'Value', t: 'num', min: 0, max: 65535 }], { c: 1, f: 1, n: 0 },
++      v => [128 + v.f, v.c, ...h16(v.n)], b => b[0] >> 3 === 16 ? { c: b[1], f: b[0] & 7, n: b[2] * 256 + b[3] } : null),
++    T('lighting', 'A light changes', [{ k: 'l', label: 'Light', t: 'pick', list: 'light' }, { k: 'w', label: 'Changes to', t: 'sel', list: [[3, 'ON'], [1, 'OFF']] }], { l: 1, w: 3 },
++      v => [112 + v.w, v.l - 1, 0, 0], b => b[0] >> 3 === 14 && b[2] === 0 && b[3] === 0 && (b[0] & 7) !== 2 ? { l: b[1] + 1, w: (b[0] & 7) === 3 ? 3 : 1 } : null),
++    T('thermo', 'A thermostat changes', [{ k: 't', label: 'Thermostat', t: 'pick', list: 'tstat' }, { k: 'w', label: 'Item', t: 'sel', list: [[0, 'Mode'], [1, 'Hold'], [2, 'Fan']] }, { k: 'x', label: 'Becomes', t: 'sel', list: [[0, 'Off / hold off / fan auto'], [1, 'Heat / hold on / fan on'], [2, 'Cool'], [3, 'Auto']] }], { t: 1, w: 0, x: 0 },
++      v => [169, v.t, v.x, v.w], b => b[0] >> 3 === 21 && (b[3] & 0xC7) <= 2 ? { t: b[1], w: b[3] & 7, x: b[2] } : null),
++  ],
++  cond: [
++    T('zone', 'A zone is ...', [{ k: 'z', label: 'Zone', t: 'pick', list: 'zone' }, { k: 's', label: 'State', t: 'sel', list: ZSTATE.slice(0, 5) }], { z: 1, s: 0 },
++      v => [97, v.s, 0, v.z], b => b[0] >> 3 === 12 && !(b[2] & 0x80) ? { z: b[3], s: b[1] } : null),
++    T('event', 'A system condition (armed, dark, alarm, ...)', [evField, { k: 'p', label: 'Is', t: 'edge', cond: true }], { ev: 1003, p: 1 },
++      v => [89, v.p ? 1 : 0, ...h16(v.ev)], b => b[0] >> 3 === 11 ? { ev: b[2] * 256 + b[3], p: b[1] ? 1 : 0 } : null),
++    T('time', 'The time of day is', [{ k: 'f', label: '', t: 'sel', list: CMPT }, { k: 'h', label: 'Hour (0-23)', t: 'num', min: 0, max: 23 }, { k: 'm', label: 'Minute', t: 'num', min: 0, max: 59 }], { f: 3, h: 22, m: 0 },
++      v => [16 + v.f, 0, v.h, v.m], b => b[0] >> 3 === 2 && b[1] === 0 ? { f: b[0] & 7, h: b[2], m: b[3] } : null),
++    T('dow', 'The day of the week is', DOWS.map((d, i) => ({ k: 'd' + i, label: d, t: 'bool' })), { d1: 1, d2: 1, d3: 1, d4: 1, d5: 1 },
++      v => [41, DOWS.reduce((s, _, i) => s | (v['d' + i] ? 1 << i : 0), 0), 0, 0], b => b[0] >> 3 === 5 ? Object.fromEntries(DOWS.map((_, i) => ['d' + i, (b[1] >> i) & 1])) : null),
++    T('month', 'The month is', [{ k: 'f', label: '', t: 'sel', list: [[1, 'exactly'], [2, 'not']] }, { k: 'n', label: 'Month (1-12)', t: 'num', min: 1, max: 12 }], { f: 1, n: 1 },
++      v => [48 + v.f, v.n, 0, 0], b => b[0] >> 3 === 6 && !(b[2] & 0x80) && (b[0] & 7) < 3 ? { f: b[0] & 7, n: b[1] } : null),
++    T('dom', 'The day of the month is', [{ k: 'f', label: '', t: 'sel', list: CMPT }, { k: 'n', label: 'Day (1-31)', t: 'num', min: 1, max: 31 }], { f: 1, n: 1 },
++      v => [56 + v.f, v.n, 0, 0], b => b[0] >> 3 === 7 && !(b[2] & 0x80) ? { f: b[0] & 7, n: b[1] } : null),
++    T('year', 'The year is', [{ k: 'f', label: '', t: 'sel', list: CMPT }, { k: 'n', label: 'Year (2000-2099)', t: 'num', min: 2000, max: 2099 }], { f: 1, n: 2026 },
++      v => [64 + v.f, v.n - 2000, 0, 0], b => b[0] >> 3 === 8 && !(b[2] & 0x80) ? { f: b[0] & 7, n: b[1] + 2000 } : null),
++    T('sun', 'Compared with sunrise or sunset', [{ k: 'w', label: 'Event', t: 'sel', list: [[9, 'Sunrise'], [10, 'Sunset']] }, { k: 'f', label: '', t: 'sel', list: CMPT }, { k: 'o', label: 'Minutes before (-) or after (+)', t: 'num', min: -1000, max: 1000 }], { w: 10, f: 3, o: 0 },
++      v => [v.w * 8 + v.f, 0, ...h16(v.o < 0 ? 65536 + v.o : v.o)], b => (b[0] >> 3 === 9 || b[0] >> 3 === 10) ? { w: b[0] >> 3, f: b[0] & 7, o: b[2] > 127 ? b[2] * 256 + b[3] - 65536 : b[2] * 256 + b[3] } : null),
++    T('counter', 'A counter is ...', [{ k: 'c', label: 'Counter', t: 'pick', list: 'counter' }, { k: 'f', label: 'Is', t: 'sel', list: CMP4 }, { k: 'n', label: 'Value', t: 'num', min: 0, max: 65535 }], { c: 1, f: 1, n: 0 },
++      v => [128 + v.f, v.c, ...h16(v.n)], b => b[0] >> 3 === 16 ? { c: b[1], f: b[0] & 7, n: b[2] * 256 + b[3] } : null),
++    T('user', 'The last user was', [{ k: 'u', label: 'User', t: 'pick', list: 'user' }], { u: 1 },
++      v => [137, 0, 0, v.u], b => b[0] >> 3 === 17 ? { u: b[3] } : null),
++    T('lighting', 'A light is ...', [{ k: 'l', label: 'Light', t: 'pick', list: 'light' }, { k: 'w', label: 'Is', t: 'sel', list: [[3, 'ON'], [1, 'OFF']] }], { l: 1, w: 3 },
++      v => [112 + v.w, v.l - 1, 0, 0], b => b[0] >> 3 === 14 && b[2] === 0 && b[3] === 0 && (b[0] & 7) !== 2 ? { l: b[1] + 1, w: (b[0] & 7) === 3 ? 3 : 1 } : null),
++  ],
++  then: [
++    T('output', 'Turn an output ON / OFF / toggle', [{ k: 'o', label: 'Output', t: 'pick', list: 'output' }, { k: 'a', label: 'Action', t: 'sel', list: [[2, 'ON'], [0, 'OFF'], [4, 'TOGGLE']] }, { k: 's', label: 'FOR seconds (0 = no time)', t: 'num', min: 0, max: 32767 }, { k: 'r', label: 'Restart timer if running', t: 'bool' }], { o: 1, a: 2, s: 0, r: 0 },
++      v => [24 | v.a | (v.r && v.s ? 1 : 0), v.o, ...h16(v.s)], b => b[0] >> 3 === 3 && b[1] !== 255 && !(b[2] & 0x80) ? { o: b[1], a: b[0] & 6, s: b[2] * 256 + b[3], r: b[0] & 1 } : null),
++    T('smoke', 'Reset smoke power', [], {}, v => [24, 255, 0, 0], b => b[0] >> 3 === 3 && b[1] === 255 ? {} : null),
++    T('arm', 'Arm or disarm areas', [{ k: 'm', label: 'Action', t: 'sel', list: ARMMODES }, ...[1, 2, 3, 4, 5, 6, 7, 8].map(n => ({ k: 'a' + n, label: 'Area ' + n, t: 'bool' })), { k: 'd', label: 'After seconds (0 = immediately)', t: 'num', min: 0, max: 65535 }], { m: 1, a1: 1, d: 0 },
++      v => [16 | v.m, [1, 2, 3, 4, 5, 6, 7, 8].reduce((s, n) => s | (v['a' + n] ? 1 << (n - 1) : 0), 0), ...h16(v.d)], b => b[0] >> 3 === 2 ? { m: b[0] & 7, ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].map(n => ['a' + n, (b[1] >> (n - 1)) & 1])), d: b[2] * 256 + b[3] } : null),
++    T('light', 'Control a light', [{ k: 'l', label: 'Light', t: 'pick', list: 'light' }, { k: 'c', label: 'Command', t: 'sel', list: LCMDS }, { k: 'n', label: 'Level % or steps', t: 'num', min: 0, max: 255 }, { k: 'f', label: 'Fade rate (0-7)', t: 'num', min: 0, max: 7 }, { k: 'for', label: 'FOR', t: 'for' }], { l: 1, c: 3, n: 100, f: 0, for: { k: 0, n: 0 } },
++      v => [32 | v.f, v.l - 1, v.c, [3, 4, 16].includes(v.c) ? 0 : v.n], b => b[0] >> 3 === 4 && [3, 4, 5, 6, 9, 16].includes(b[2]) ? { l: b[1] + 1, c: b[2], n: b[3], f: b[0] & 7, for: { k: 0, n: 0 } } : null),
++    T('task', 'Activate a task', [{ k: 't', label: 'Task', t: 'pick', list: 'task' }], { t: 1 }, v => [80, v.t, 0, 0], b => b[0] >> 3 === 10 ? { t: b[1] } : null),
++    T('counter', 'Set / add to / subtract from / toggle a counter', [{ k: 'c', label: 'Counter', t: 'pick', list: 'counter' }, { k: 'o', label: 'Action', t: 'sel', list: [[0, 'Set to'], [1, 'Add'], [2, 'Subtract'], [3, 'Toggle 0/1']] }, { k: 'n', label: 'Value', t: 'num', min: 0, max: 65535 }], { c: 1, o: 0, n: 0 },
++      v => [72 | v.o, v.c, ...h16(v.n)], b => b[0] >> 3 === 9 ? { c: b[1], o: b[0] & 7, n: b[2] * 256 + b[3] } : null),
++    T('sayzone', 'Announce a zone name', [{ k: 'z', label: 'Zone', t: 'pick', list: 'zone' }], { z: 1 }, v => [40, 0, ...h16(v.z)], b => b[0] >> 3 === 5 && b[2] * 256 + b[3] < 209 ? { z: b[2] * 256 + b[3] } : null),
++    T('sayvm', 'Announce a voice message', [{ k: 'm', label: 'Message', t: 'pick', list: 'vm' }], { m: 1 }, v => [40, 0, ...h16(208 + v.m)], b => b[0] >> 3 === 5 && b[2] * 256 + b[3] >= 209 ? { m: b[2] * 256 + b[3] - 208 } : null),
++    T('saytask', 'Announce a task name', [{ k: 't', label: 'Task', t: 'pick', list: 'task' }], { t: 1 }, v => [152, 0, 0, v.t], b => b[0] >> 3 === 19 ? { t: b[3] } : null),
++    T('sayout', 'Announce an output name', [{ k: 'o', label: 'Output', t: 'pick', list: 'output' }], { o: 1 }, v => [160, 0, 0, v.o], b => b[0] >> 3 === 20 ? { o: b[3] } : null),
++    T('thermo', 'Set a thermostat', [{ k: 't', label: 'Thermostat', t: 'pick', list: 'tstat' }, { k: 'w', label: 'Item', t: 'sel', list: [[0, 'Mode'], [2, 'Hold (0 off, 1 on)'], [4, 'Fan (0 auto, 1 on)'], [8, 'Cooling setpoint (deg F)'], [10, 'Heating setpoint (deg F)']] }, { k: 'x', label: 'Value (mode 0 off 1 heat 2 cool 3 auto)', t: 'num', min: 0, max: 255 }], { t: 1, w: 0, x: 1 },
++      v => [176, v.x, v.t, v.w], b => b[0] >> 3 === 22 && b[3] !== 1 && b[3] !== 9 && (b[3] & 1) === 0 ? { t: b[2], w: b[3], x: b[1] } : null),
++    T('user', 'Enable or disable a user code', [{ k: 'u', label: 'User', t: 'pick', list: 'user' }, { k: 'd', label: 'Action', t: 'sel', list: [[0, 'Enable'], [1, 'Disable']] }], { u: 1, d: 1 },
++      v => [192 | v.d, 0, 0, v.u], b => b[0] >> 3 === 24 ? { u: b[3], d: b[0] & 1 } : null),
++    T('bypass', 'Bypass or unbypass a zone', [{ k: 'z', label: 'Zone', t: 'pick', list: 'zone' }, { k: 'b', label: 'Action', t: 'sel', list: [[1, 'Bypass'], [0, 'Unbypass']] }], { z: 1, b: 1 },
++      v => [224, v.b, ...h16(v.z)], b => b[0] >> 3 === 28 && b[2] * 256 + b[3] > 0 && b[2] * 256 + b[3] < 209 ? { z: b[2] * 256 + b[3], b: b[1] } : null),
++    T('beeps', 'Start or stop keypad beeps in an area', [{ k: 'a', label: 'Area', t: 'pick', list: 'area' }, { k: 's', label: 'Action', t: 'sel', list: [[1, 'Start beeps'], [0, 'Stop beeps']] }], { a: 1, s: 1 },
++      v => [96 | (v.a - 1), v.s, 0, 0], b => b[0] >> 3 === 12 ? { a: (b[0] & 7) + 1, s: b[1] ? 1 : 0 } : null),
++    T('chirp', 'Chirp the outside siren', [{ k: 'n', label: 'Times (1-7)', t: 'num', min: 1, max: 7 }], { n: 1 }, v => [104 | v.n, 0, 0, 0], b => b[0] >> 3 === 13 ? { n: b[0] & 7 } : null),
++    T('chime', 'Set the chime of an area', [{ k: 'a', label: 'Area', t: 'pick', list: 'area' }, { k: 'm', label: 'Chime', t: 'sel', list: [[0, 'Disable'], [1, 'Ding only'], [2, 'Voice only'], [3, 'Ding and voice']] }], { a: 1, m: 0 },
++      v => [136 | (v.a - 1), v.m, 0, 0], b => b[0] >> 3 === 17 ? { a: (b[0] & 7) + 1, m: b[1] } : null),
++    T('vmen', 'Enable or disable non-alarm voice messages', [{ k: 'e', label: 'Action', t: 'sel', list: [[0, 'Enable'], [1, 'Disable']] }], { e: 0 }, v => [208, v.e, 0, 0], b => b[0] >> 3 === 26 ? { e: b[1] ? 1 : 0 } : null),
++    T('kpmenu', 'Show the area arming menu on a keypad', [{ k: 'k', label: 'Keypad', t: 'pick', list: 'keypad' }], { k: 1 }, v => [240, v.k, 0, 0], b => b[0] >> 3 === 30 ? { k: b[1] } : null),
++  ],
++};
++// the FOR of a THEN is a separate packet (152, ...) after the lighting THEN: custom value (byte 1) or seconds (bytes 4-7)
++const forPacket = f => f.k === 1 ? [152, f.n, 0, 0, 0, 0, 0, 0] : [152, 0, 0, 0, ...[24, 16, 8, 0].map(s => (f.n >>> s) & 255)];
++const forParse = p => p[1] > 0 ? { k: 1, n: p[1] } : { k: 2, n: ((p[4] * 256 + p[5]) * 256 + p[6]) * 256 + p[7] };
++
++// packets <-> draft { trig:{id|null, v, raw}, conds:[...], thens:[{id,v,raw,for}], comment }
++function kindOf(list, bytes) { for (const k of KINDS[list]) { const v = k.parse(bytes); if (v) return { id: k.id, v }; } return { id: null, raw: bytes.slice() }; }
++function decompose(r) {
++  const pk = r.packets, d = { trig: kindOf('trig', pk[0].slice(0, 4)), conds: [], thens: [], comment: r.comment };
++  let p = 0;
++  while (pk[p][4] >> 3 === 1) { p++; if (p >= pk.length || [18, 19].includes(pk[p][0] >> 3)) return null; d.conds.push(kindOf('cond', pk[p].slice(0, 4))); }
++  const hasFor = i => i + 1 < pk.length && pk[i + 1][0] >> 3 === 19;
++  let i = p; d.thens.push(thenOf(pk, i)); i += hasFor(i) ? 2 : 1;
++  while (i < pk.length && pk[i][0] >> 3 === 18) { d.thens.push(thenOf(pk, i)); i += hasFor(i) ? 2 : 1; }
++  return i === pk.length ? d : null;
++}
++function thenOf(pk, i) {
++  const t = kindOf('then', pk[i].slice(4)); t.for = { k: 0, n: 0 };
++  if (i + 1 < pk.length && pk[i + 1][0] >> 3 === 19) {
++    t.forRaw = pk[i + 1].slice();
++    if (t.id === 'light') { t.for = forParse(pk[i + 1]); t.v.for = t.for; } else { t.id = null; t.raw = pk[i].slice(4); delete t.v; }   // a FOR after anything but a light: keep the bytes as they are
++  }
++  return t;
++}
++const findKind = (list, id) => KINDS[list].find(k => k.id === id);
++const bytesOf = (list, x) => x.id ? findKind(list, x.id).build(x.v) : x.raw;
++function compose(d) {
++  const pk = [], T0 = bytesOf('trig', d.trig), R = d.thens.map(t => bytesOf('then', t));
++  const forP = t => t.id === 'light' ? (t.v.for && t.v.for.k && t.v.for.n ? forPacket(t.v.for) : null) : (t.forRaw && !t.id ? t.forRaw : null);
++  const chain = [T0, ...d.conds.map(c => bytesOf('cond', c))];
++  chain.forEach((c, i) => pk.push([...c, ...(i === chain.length - 1 ? R[0] : [8, 0, 0, 0])]));
++  let f = forP(d.thens[0]); if (f) pk.push(f);
++  for (let j = 1; j < d.thens.length; j++) { pk.push([144, 0, 0, 0, ...R[j]]); f = forP(d.thens[j]); if (f) pk.push(f); }
++  return pk;
++}
++
++// ---- English from the server (the page's model is applied to the opened file exactly as a save does; nothing is stored) ------------------------
++let ENGTIMER = 0;
++async function engFetch(model) {
++  const r = await fetch('/api/rules/english', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(model) });
++  if (!r.ok) { const t = await r.text(); let m = t; try { m = JSON.parse(t); } catch (e) { } throw new Error(m); }
++  return r.json();
++}
++function engSig() { const A = rA(); return JSON.stringify([A.rules.map(r => r.packets), MODEL.zones.map(z => [z.n, z.name, z.type]), MODEL.areas.map(z => z.name), MODEL.keypads.map(z => z.name), MODEL.users.map(z => z.name), MODEL.phones.map(z => [z.name, z.number]), A.tasks.map(z => z.name), A.outputs.map(z => z.name), A.counters, A.thermostats, A.customs.map(z => z.name), A.lights.map(z => z.name), A.texts.map(z => z.text)]); }
++function engRefresh() {
++  const sig = engSig(); if (sig === RUL.sig) return; RUL.sig = sig; clearTimeout(ENGTIMER);
++  ENGTIMER = setTimeout(async () => {
++    try { RUL.eng = await engFetch(modelBody()); RUL.err = ''; } catch (e) { RUL.err = e.message; }
++    if (RUL.box && document.body.contains(RUL.box)) paintRules();
++  }, 120);
++}
++const ruleLines = (r, i) => (RUL.eng && RUL.eng.rules[i] && RUL.eng.rules.length === rA().rules.length) ? RUL.eng.rules[i] : [r.summary];
++const renum = A => A.rules.forEach((r, i) => r.n = i + 1);
++const hexOf = a => a.map(v => v.toString(16).padStart(2, '0')).join(' ');
++
++function paintRules() {
++  const A = rA(), box = RUL.box; box.replaceChildren();
++  const q = RUL.q.toLowerCase(), rows = [];
++  const selList = () => [...RUL.sel].sort((a, b) => a - b);
+   A.rules.forEach((r, i) => {
+-    const raw = el('details', {}, el('summary', {}, r.packets.length + ' packet(s)'),
+-      r.packets.map((pk, k) => { const inp = el('input', { class: 't mono', value: hex(pk), size: 28, title: 'Packet ' + (k + 1) + ': 8 bytes in hex. Byte 0 / 8 = packet type; byte 4 / 8 = result type.' });
+-        inp.onchange = () => { const v = inp.value.trim().split(/[\s,]+/).map(s => parseInt(s, 16)); if (v.length !== 8 || v.some(x => !(x >= 0 && x <= 255))) { inp.classList.add('bad'); showErr('A packet is 8 hex bytes, for example 59 01 03 eb 1a 03 00 00.'); return; } inp.classList.remove('bad'); showErr(''); r.packets[k] = v; track(false); };
+-        return el('div', {}, inp); }));
+-    const mv = d => { const j = i + d; if (j < 0 || j >= A.rules.length) return; [A.rules[i], A.rules[j]] = [A.rules[j], A.rules[i]]; render(); };
+-    rows.push(el('tr', {}, el('td', {}, i + 1), el('td', { style: 'white-space:normal;min-width:340px' }, r.summary, raw), el('td', {}, text(r.comment, v => r.comment = v, 'wide', 250)),
+-      el('td', {}, el('button', { title: 'Move up', disabled: i === 0, onclick: () => mv(-1) }, '↑'), el('button', { title: 'Move down', disabled: i === A.rules.length - 1, onclick: () => mv(1) }, '↓')),
+-      el('td', {}, armBtn('Delete', () => 'Delete rule ' + (i + 1), () => { A.rules.splice(i, 1); render(); }))));
++    const lines = ruleLines(r, i);
++    if (q && !(lines.join(' ') + ' ' + r.comment).toLowerCase().includes(q)) return;
++    const tr = el('tr', { class: RUL.sel.has(i) ? 'rsel' : '', onclick: e => {
++      if (e.shiftKey && RUL.last >= 0) { const [a, b] = [Math.min(RUL.last, i), Math.max(RUL.last, i)]; RUL.sel.clear(); for (let k = a; k <= b; k++) RUL.sel.add(k); }
++      else if (e.ctrlKey || e.metaKey) { RUL.sel.has(i) ? RUL.sel.delete(i) : RUL.sel.add(i); RUL.last = i; } else { RUL.sel.clear(); RUL.sel.add(i); RUL.last = i; }
++      paintRules();
++    }, ondblclick: () => editRule(i) },
++      el('td', { class: 'c' }, i + 1),
++      el('td', { class: 'rtxt' }, r.comment ? el('div', { class: 'rcom' }, r.comment) : null, lines.map((l, k) => el('div', { class: k === 0 ? 'rw' : /^AND\b/.test(l) ? 'ra' : 'rt' }, l))));
++    rows.push(tr);
+   });
+-  p.append(el('div', { class: 'hint' }, 'Each rule is WHENEVER (a trigger) [AND conditions] THEN (one or more results, some with a FOR time). The panel allows 528 packets for rules and texts together; ',
+-      el('b', {}, `${A.rulePacketsUsed} rule packets and ${A.textPacketsUsed} text packets are used`), '. Here you can read each rule, give it a comment, change the order, delete it or edit its packets in hex. The words for event triggers, text and the packet types are decoded; the wording of the other triggers and results is not reproduced, so create or reshape rules in ElkRP’s When / Then editor.'),
+-    A.rules.length ? tbl(el('tr', {}, ['#', 'Rule', 'Comment', 'Order', ''].map(h => el('th', {}, h))), rows) : el('div', { class: 'hint' }, 'This account has no rules.'));
++  const n = selList().length, one = n === 1 ? selList()[0] : -1;
++  const btn = (t, tip, fn, dis) => { const b = el('button', { title: tip, disabled: !!dis, onclick: fn }, t); return b; };
++  const del = () => { const s = selList(); if (!s.length) return; A.rules = A.rules.filter((_, i) => !RUL.sel.has(i)); renum(A); RUL.sel.clear(); render(); };
++  const copy = () => { RUL.clip = selList().map(i => JSON.parse(JSON.stringify(A.rules[i]))); showOk(`${RUL.clip.length} rule(s) copied.`); paintRules(); };
++  const mv = d => { const s = selList(); if (!s.length) return; const a = A.rules.slice(), sel = new Set(s); const idx = d < 0 ? [...s] : [...s].reverse(); for (const i of idx) { const j = i + d; if (j < 0 || j >= a.length || sel.has(j)) continue; [a[i], a[j]] = [a[j], a[i]]; sel.delete(i); sel.add(j); } A.rules = a; renum(A); RUL.sel = sel; render(); };
++  const toolbar = el('div', { class: 'bar plain rbar' },
++    btn('New', 'Add a new rule (after the selected one)', () => editRule(-1)),
++    btn('Edit', 'Edit the selected rule (or double-click it)', () => editRule(one), one < 0),
++    btn('Cut', 'Copy the selected rules and delete them', () => { copy(); del(); }, !n),
++    btn('Copy', 'Copy the selected rules', copy, !n),
++    btn('Paste', 'Paste the copied rules after the selected one', () => { const at = n ? selList()[n - 1] + 1 : A.rules.length; const add = RUL.clip.map(r => JSON.parse(JSON.stringify(r))); A.rules.splice(at, 0, ...add); renum(A); RUL.sel = new Set(add.map((_, k) => at + k)); render(); }, !RUL.clip || !RUL.clip.length),
++    el('label', { class: 'cb' }, 'Find', Object.assign(el('input', { type: 'search', placeholder: 'words in a rule', value: RUL.q, size: 18 }), { oninput: e => { RUL.q = e.target.value; paintRules(); const f = $('input[type=search]', RUL.box); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } } })),
++    btn('Enable', 'ElkRP can switch a rule off inside its own database. The export file has no such flag, so there is nothing to enable here.', () => { }, true),
++    btn('Disable', 'ElkRP can switch a rule off inside its own database. The export file has no such flag, so there is nothing to disable here.', () => { }, true),
++    btn('Delete', 'Delete the selected rules', del, !n),
++    btn('↑', 'Move the selected rules up', () => mv(-1), !n), btn('↓', 'Move the selected rules down', () => mv(1), !n),
++    btn('Undo', 'Undo the last change (the same as the Undo button above)', () => undo(), !UNDO.length),
++    btn('Test', 'ElkRP tests a rule on the connected panel. This editor does not run rules.', () => { }, true));
++  const pct = RUL.eng ? RUL.eng.percent : Math.round((A.rulePacketsUsed + A.textPacketsUsed) * 100 / 528);
++  box.append(toolbar,
++    RUL.err ? el('div', { class: 'iss error' }, RUL.err) : null,
++    A.rules.length ? el('div', { class: 'tablewrap' }, el('table', { class: 'rtab' }, el('thead', {}, el('tr', {}, ['#', 'Rule (WHENEVER ... AND ... THEN ...)'].map(h => el('th', {}, h)))), el('tbody', {}, rows))) : el('div', { class: 'hint' }, 'This account has no rules. Use New.'),
++    el('div', { class: 'rfoot' }, `${pct}% of Rules/Text space used.  ${100 - pct}% still available.`),
++    el('div', { class: 'hint' }, 'By definition, a rule is a "WHENEVER" event with a single "THEN" statement.  Additional "ANDs" and "THENs" use one additional Rule each.  If a "THEN" statement contains a "FOR" it will use one additional Rule.'));
++}
++
++function autoRules(p, A) {
++  RUL.box = el('div'); RUL.sel = new Set([...RUL.sel].filter(i => i < A.rules.length));
++  p.append(el('div', { class: 'hint' }, 'The wording is ElkRP’s. Click a rule to select it (Shift or Ctrl for several), double-click or Edit to change it. Comments are kept per rule (Edit > Comment). The panel allows 528 packets for rules and texts together.'), RUL.box);
++  paintRules(); engRefresh();
++}
++
++// ---- the rule editor (ElkRP's When / Then dialogs in one page) ----------------------------------------------------------------------------------
++function fieldEl(f, v, key, changed) {
++  const set = x => { v[key] = x; changed(); };
++  if (f.t === 'pick' || f.t === 'sel') {
++    const list = f.t === 'pick' ? FLD[f.list]() : f.list, s = el('select', {}, list.map(([val, lab]) => el('option', { value: val, selected: val === v[key] }, lab)));
++    if (!list.some(x => x[0] === v[key])) s.prepend(el('option', { value: v[key], selected: true }, String(v[key]) + ' (not in the list)'));
++    s.onchange = () => set(+s.value); return s;
++  }
++  if (f.t === 'num') { const i = el('input', { type: 'number', min: f.min, max: f.max, value: v[key], style: 'width:90px' }); i.oninput = () => set(+i.value); return i; }
++  if (f.t === 'bool') { const i = el('input', { type: 'checkbox', checked: !!v[key] }); i.onchange = () => set(i.checked ? 1 : 0); return i; }
++  if (f.t === 'for') {
++    const ft = v[key] || (v[key] = { k: 0, n: 0 });
++    const ks = el('select', {}, [[0, 'no time'], [2, 'seconds'], [1, 'a custom value']].map(([a, b]) => el('option', { value: a, selected: a === ft.k }, b)));
++    const val = () => ft.k === 1 ? fieldEl({ t: 'pick', list: 'custom' }, ft, 'n', changed) : ft.k === 2 ? fieldEl({ t: 'num', min: 1, max: 4294967295 }, ft, 'n', changed) : el('span');
++    const wrap = el('span', {}, ks, ' ', val());
++    ks.onchange = () => { ft.k = +ks.value; ft.n = ft.k === 1 ? 1 : ft.k === 2 ? 10 : 0; wrap.replaceChildren(ks, ' ', val()); changed(); };
++    return wrap;
++  }
++  if (f.t === 'edge') {   // the two phrases of the event, from ElkRP's event table
++    const w = evWords(v.ev), s = el('select', {}, (f.cond ? [[1, w[6] || 'is the first state'], [0, w[7] || 'is the second state']] : [[1, w[2] || 'turns on / is the first state'], [0, w[3] || 'cuts off / is the second state']]).map(([a, b]) => el('option', { value: a, selected: a === v.p }, b)));
++    s.onchange = () => set(+s.value); s.dataset.edge = '1'; return s;
++  }
++  if (f.t === 'event') {
++    const ids = Object.keys(META.eventNames).map(Number).filter(n => n !== 1000), wrap = el('span', { class: 'evpick' });
++    const flt = el('input', { type: 'search', placeholder: 'filter the events', size: 16 }), s = el('select', { size: 1, style: 'max-width:380px' });
++    const fill = () => { const q = flt.value.toLowerCase(); s.replaceChildren(...ids.filter(n => !q || META.eventNames[n].toLowerCase().includes(q) || n === v.ev).slice(0, 600).map(n => el('option', { value: n, selected: n === v.ev }, META.eventNames[n]))); };
++    flt.oninput = fill; s.onchange = () => { v.ev = +s.value; changed(true); }; fill();
++    wrap.append(flt, ' ', s); return wrap;
++  }
++  return el('span');
++}
++
++function partEl(list, x, onchange, onremove, title) {
++  const box = el('div', { class: 'rpart' });
++  const draw = () => {
++    box.replaceChildren();
++    const ks = el('select', {}, [...KINDS[list].map(k => el('option', { value: k.id, selected: x.id === k.id }, k.label)), x.id === null ? el('option', { value: '', selected: true }, 'Other (packet bytes only, edit in hex below)') : null]);
++    ks.onchange = () => { if (!ks.value) return; const k = findKind(list, ks.value); x.id = k.id; x.v = JSON.parse(JSON.stringify(k.def)); delete x.raw; if (list === 'then') x.for = { k: 0, n: 0 }; draw(); onchange(); };
++    box.append(el('div', { class: 'rhead' }, el('b', {}, title), ks, onremove ? el('button', { type: 'button', onclick: onremove }, 'Remove') : null));
++    if (x.id) {
++      const k = findKind(list, x.id), row = el('div', { class: 'row' });
++      for (const f of k.fields) row.append(el('label', {}, f.label, fieldEl(f, x.v, f.k, edgeRefresh => { if (edgeRefresh === true) draw(); onchange(); })));
++      box.append(row);
++    } else box.append(el('div', { class: 'hint mono' }, hexOf(x.raw || []), ' (packet bytes of this part; the exact wording is shown below)'));
++  };
++  draw(); return box;
++}
++
++function editRule(idx) {
++  const A = rA(), box = $('#modalBox'); box.replaceChildren();
++  const isNew = idx < 0, base = isNew ? { n: 0, comment: '', packets: [], summary: '' } : A.rules[idx];
++  let d = isNew ? { trig: { id: 'zone', v: { z: 1, s: 2 } }, conds: [], thens: [{ id: 'output', v: { o: 1, a: 2, s: 0, r: 0 }, for: { k: 0, n: 0 } }], comment: '' } : decompose(base);
++  let hexMode = false;
++  if (!d) { d = { trig: { id: null, raw: base.packets[0].slice(0, 4) }, conds: [], thens: [], comment: base.comment }; hexMode = true; }
++  const prev = el('pre', { class: 'log rprev' }), msg = el('div', { class: 'iss error', style: 'display:none' }), ok = el('button', { class: 'primary' }, isNew ? 'Add rule' : 'Save rule');
++  const hexBox = el('textarea', { rows: 4, class: 't mono', style: 'width:100%' });
++  let packets = base.packets, timer = 0;
++  const trial = async () => {
++    msg.style.display = 'none'; ok.disabled = true;
++    try {
++      if (!hexMode) packets = compose(d);
++      hexBox.value = packets.map(hexOf).join('\n');
++      const m = modelBody(), rules = m.automation.rules, rule = { n: 0, comment: d.comment, packets, summary: '' }, at = isNew ? (RUL.sel.size ? Math.max(...RUL.sel) + 1 : rules.length) : idx;
++      if (isNew) rules.splice(at, 0, rule); else rules[idx] = Object.assign({}, rules[idx], rule);
++      rules.forEach((r, i) => r.n = i + 1);
++      const res = await engFetch(m);
++      prev.textContent = (res.rules[at] || ['?']).join('\n');
++      prev.dataset.pct = `${res.percent}% of Rules/Text space used after this change (this rule uses ${packets.length} packet(s)).`;
++      foot.textContent = prev.dataset.pct; ok.disabled = false;
++    } catch (e) { msg.textContent = 'Refused: ' + e.message; msg.style.display = 'block'; prev.textContent = ''; }
++  };
++  const changed = () => { clearTimeout(timer); timer = setTimeout(trial, 150); };
++  const foot = el('div', { class: 'hint' });
++  const body = el('div');
++  const draw = () => {
++    body.replaceChildren();
++    if (hexMode) body.append(el('div', { class: 'hint' }, 'This rule uses packet types the form cannot show. It can still be edited as packet bytes below.'));
++    else {
++      body.append(partEl('trig', d.trig, changed, null, 'WHENEVER'));
++      d.conds.forEach((c, i) => body.append(partEl('cond', c, changed, () => { d.conds.splice(i, 1); draw(); changed(); }, 'AND')));
++      body.append(el('div', {}, el('button', { type: 'button', onclick: () => { d.conds.push({ id: 'time', v: Object.assign({}, findKind('cond', 'time').def) }); draw(); changed(); } }, 'Add AND condition')));
++      d.thens.forEach((t, i) => body.append(partEl('then', t, changed, d.thens.length > 1 ? () => { d.thens.splice(i, 1); draw(); changed(); } : null, 'THEN')));
++      body.append(el('div', {}, el('button', { type: 'button', onclick: () => { d.thens.push({ id: 'output', v: Object.assign({}, findKind('then', 'output').def), for: { k: 0, n: 0 } }); draw(); changed(); } }, 'Add another THEN')));
++    }
++  };
++  draw();
++  const comment = el('input', { type: 'text', class: 'wide', maxlength: 250, value: d.comment }); comment.oninput = () => { d.comment = comment.value; };
++  hexBox.onchange = () => {
++    const rows = hexBox.value.split(/\n+/).map(s => s.trim()).filter(Boolean).map(s => s.split(/[\s,]+/).map(x => parseInt(x, 16)));
++    if (!rows.length || rows.some(r => r.length !== 8 || r.some(x => !(x >= 0 && x <= 255)))) { msg.textContent = 'Packets are 8 hex bytes per line, for example 59 01 03 eb 1a 03 00 00.'; msg.style.display = 'block'; return; }
++    packets = rows; const nd = decompose({ packets, comment: d.comment }); if (nd) { d = nd; hexMode = false; } else hexMode = true; draw(); trial();
++  };
++  ok.onclick = () => {
++    const rule = { n: 0, comment: d.comment, packets: hexMode ? packets : compose(d), summary: '' };
++    if (isNew) { const at = RUL.sel.size ? Math.max(...RUL.sel) + 1 : A.rules.length; A.rules.splice(at, 0, rule); RUL.sel = new Set([at]); }
++    else A.rules[idx] = Object.assign({}, A.rules[idx], rule);
++    renum(A); closeModal(); render();
++  };
++  box.append(el('h2', {}, isNew ? 'New rule' : 'Edit rule ' + (idx + 1)),
++    el('div', { class: 'hint' }, 'A rule is a WHENEVER event with a single THEN statement. Additional ANDs and THENs use one additional rule each; a THEN with a FOR (a lighting command with a time) uses one additional rule.'),
++    body, el('div', { class: 'row', style: 'margin-top:8px' }, el('label', {}, 'Comment (one line)', comment)),
++    el('h4', {}, 'ElkRP wording'), prev, msg, foot,
++    el('details', {}, el('summary', {}, 'Advanced: packets (hex)'), el('div', { class: 'hint' }, 'One line per packet, 8 bytes. Byte 0 / 8 = packet type (trigger or condition), byte 4 / 8 = result type. Edit and leave the box to apply.'), hexBox),
++    el('div', { class: 'bar plain', style: 'margin-top:10px' }, ok, el('button', { onclick: closeModal }, 'Cancel')));
++  $('#modal').style.display = 'flex'; trial();
+ }
+ 
+ // lights (X10 / lighting list): 256 items, A1 .. P16

@@ -1,0 +1,31 @@
+# build output
+bin/
+obj/
+dist/
+.vs/
+*.user
+
+# Not for upload: third-party material and local-only data
+# ILSpy decompilation of ElkRP (third-party code)
+/src/
+# Ghidra output for ElkComm2.dll (third-party code)
+/ghidra/
+# copies of ElkRP's protected Access databases and scripts
+/db/
+/tooltest/
+# real account exports, panel backups and test files (addresses, codes)
+/TESTING/
+/sample/*.mdb
+/sample/*.mdw
+/sample/*.bak-*
+/sample/*.ps1
+# obsolete database-editing tool (embeds a database password)
+/port/src/Elk.AccountTool/
+# real addresses and paths for this machine
+/docs/LOCAL-NOTES.md
+
+# accounts library of a build run from git (update-from-git -Run)
+/ElkEditor data/
+
+# strings that must never be published (read by rust/packaging/publish-clean.ps1)
+/.publish-deny.txt

@@ -1,0 +1,23 @@
+{
+  "schema": "rust-anything/front-door@1",
+  "name": "elkaccounteditor",
+  "commands": [],
+  "units": [],
+  "kind": "http",
+  "routes": [
+    "POST /api/databus/check",
+    "GET /",
+    "POST /api/live/disconnect",
+    "POST /api/live/modules",
+    "GET /api/live/status",
+    "GET /api/meta",
+    "GET /api/model",
+    "POST /api/new",
+    "POST /api/open",
+    "POST /api/panel/compare",
+    "GET /api/panel/progress",
+    "POST /api/save",
+    "POST /api/zones/export",
+    "POST /api/zones/read"
+  ]
+}

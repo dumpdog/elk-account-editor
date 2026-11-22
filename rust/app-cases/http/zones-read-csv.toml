@@ -1,0 +1,23 @@
+[request]
+method = "POST"
+path = "/api/zones/read?name=zones.csv"
+body = """
+Zone,Name,Definition,Type,Area,Attributes\r
+1,Front Door,1,0,1,Bypassable|Enable Chime\r
+2,Garage Door,1,0,1,Bypassable\r
+3,Living Rm Motion,3,0,1,Bypassable|Fast loop response\r
+4,Kitchen Window,2,0,1,Bypassable\r
+5,Back Door,1,0,2,Bypassable|Enable Chime\r
+6,Basement Smoke,16,0,1,Silent alarm\r
+17,Garage Smoke,16,0,1,Listen in\r
+186,Shed Glassbreak,4,5,3,Bypassable|Swinger shutdown\r
+"""
+
+[request.headers]
+Content-Type = "text/csv"
+
+[response]
+status = 200
+
+[response.headers]
+content-type = "application/json; charset=utf-8"

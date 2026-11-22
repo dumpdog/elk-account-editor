@@ -1,0 +1,20 @@
+# Paths and globs (relative to the repository root, forward slashes) that publish-clean.ps1 does NOT copy to the public repository.
+# `*` matches within one folder, `**` across folders, a pattern without `/` matches that name at any depth. Lines starting with # are comments.
+
+# The full event table with ElkRP's wording. The public build embeds an empty table (see crates/elk-account/build.rs) and shows
+# generic wording ("Event 1003"); this repository keeps the file so its own builds have the full wording.
+rust/crates/elk-account/src/data/event-list-m1g.tsv
+
+# Tables transcribed from the Elk M1 installation manual
+docs/ELK-ZONE-EXPANDER-TABLES.md
+
+# /api/meta golden of the C# server: contains the whole event table as `eventNames` (its test skips itself without the table)
+rust/crates/elk-account/tests/fixtures/meta.json
+
+# Local-only material (normally not tracked either)
+TESTING/**
+dist/**
+**/*.old.exe
+.publish-deny.txt
+
+# (The recorded replay cases that show event wording use the [..] wildcard for it, so they pass with and without the table.)

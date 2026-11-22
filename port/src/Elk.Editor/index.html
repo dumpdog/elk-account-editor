@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light dark">
+<title>Elk account editor</title>
+<style>
+  :root { color-scheme: light; --bg:#f6f7f9; --card:#fff; --line:#d7dbe0; --ink:#1d2430; --mute:#667085; --acc:#1f6feb; --warn:#b54708; --info:#175cd3; --bad:#b42318; --good:#067647;
+    --inset:#fff; --soft:#f8f9fb; --row:#eef0f3; --th:#f7f8fa; --tab:#eceff3; --bar:#f1f5ff; --bar-line:#cfdcff; --sel:#eef4ff; --new:#f0fdf4; --focus:#9ec5ff;
+    --bad-bg:#fef3f2; --bad-line:#fecdca; --good-bg:#ecfdf3; --good-line:#abefc6; --warn-bg:#fef0c7; --warn-ink:#93370d; --draft-bg:#fffaeb; --draft-line:#fedf89;
+    --on-bg:#dcfce7; --on-line:#86efac; --off-bg:#fee2e2; --off-line:#fca5a5; --live-bg:#e8f0ff; --live-ink:#1849a9; }
+  :root[data-theme="dark"] { color-scheme: dark; --bg:#0f141a; --card:#171d25; --line:#323d4b; --ink:#e6eaf0; --mute:#9aa4b2; --acc:#3b82f6; --warn:#f79009; --info:#84adff; --bad:#f97066; --good:#47cd89;
+    --inset:#202a36; --soft:#1b222c; --row:#252f3b; --th:#1d2530; --tab:#1f2731; --bar:#142340; --bar-line:#2b4373; --sel:#1b2c4b; --new:#12301f; --focus:#4a78c2;
+    --bad-bg:#3b1c1a; --bad-line:#7a2e27; --good-bg:#10301f; --good-line:#1f5c3a; --warn-bg:#40300f; --warn-ink:#fec84b; --draft-bg:#3a2f10; --draft-line:#7a5c12;
+    --on-bg:#14402a; --on-line:#2a7a50; --off-bg:#47201d; --off-line:#8a3a33; --live-bg:#16294a; --live-ink:#a4c2ff; }
+  button.primary { color:#fff; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif; background:var(--bg); color:var(--ink); }
+  header { display:flex; gap:10px; align-items:center; padding:8px 16px; background:var(--card); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; flex-wrap:wrap; }
+  header h1 { font-size:16px; margin:0; }
+  header .file { color:var(--mute); }
+  #dirty { color:var(--warn); font-weight:600; display:none; }
+  button { font:inherit; padding:5px 11px; border:1px solid var(--line); background:var(--inset); border-radius:6px; cursor:pointer; }
+  button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
+  button:disabled { opacity:.5; cursor:default; }
+  button:hover:not(:disabled) { filter:brightness(.96); }
+  nav { display:flex; gap:2px; padding:8px 16px 0; flex-wrap:wrap; }
+  nav button { border-radius:6px 6px 0 0; border-bottom:none; background:var(--tab); }
+  nav button.on { background:var(--card); font-weight:600; }
+  nav button .badge { display:inline-block; min-width:18px; padding:0 5px; margin-left:5px; border-radius:9px; background:var(--bad-bg); color:var(--bad); font-size:11px; font-weight:600; text-align:center; }
+  nav button.live { margin-left:auto; border:1px solid var(--acc); border-bottom:none; background:var(--live-bg); color:var(--live-ink); font-weight:700; padding:5px 16px; }
+  nav button.live.on { background:var(--card); box-shadow:inset 0 3px 0 var(--acc); }
+  nav button .dot { display:inline-block; width:9px; height:9px; margin-right:7px; border-radius:50%; background:var(--mute); opacity:.55; vertical-align:middle; }
+  nav button .dot.up { background:var(--good); opacity:1; box-shadow:0 0 0 3px var(--good-line); }
+  nav button .badge.w { background:var(--warn-bg); color:var(--warn-ink); }
+  main { padding:0 16px 40px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:0 8px 8px 8px; padding:14px; }
+  .bar { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:flex-end; margin-bottom:10px; padding:10px; background:var(--bar); border:1px solid var(--bar-line); border-radius:8px; }
+  #histBox { display:none; position:absolute; left:0; top:100%; z-index:50; width:520px; max-height:60vh; overflow:auto; background:var(--card); border:1px solid var(--line, #ccc); box-shadow:0 4px 14px rgba(0,0,0,.2); border-radius:6px; font-size:13px; }
+  #histBox .hhead { padding:6px 10px; color:#667; border-bottom:1px solid var(--line, #ddd); }
+  #histBox .hrow { padding:5px 10px; cursor:pointer; border-bottom:1px solid rgba(128,128,128,.15); }
+  #histBox .hrow:hover { background:rgba(80,120,200,.15); }
+  #histBox .hrow.now { cursor:default; font-weight:600; background:rgba(80,160,80,.12); }
+  #histBox .hrow.later { opacity:.75; }
+  #histBox .hn { display:inline-block; min-width:62px; margin-right:8px; color:#789; font-size:11px; text-transform:uppercase; }
+  .bar.plain { background:var(--soft); border-color:var(--line); }
+  .bar label { display:flex; flex-direction:column; font-size:12px; color:var(--mute); gap:2px; }
+  .bar input[type=text], .bar input[type=search], .bar select { padding:4px 6px; border:1px solid var(--line); border-radius:5px; font:inherit; }
+  .flags { display:flex; flex-wrap:wrap; gap:4px 10px; }
+  .flag3 { display:inline-flex; align-items:center; gap:4px; border:1px solid var(--line); background:var(--inset); border-radius:5px; padding:2px 6px; font-size:12px; cursor:pointer; user-select:none; }
+  .flag3[data-s="1"] { background:var(--on-bg); border-color:var(--on-line); } .flag3[data-s="-1"] { background:var(--off-bg); border-color:var(--off-line); }
+  .tablewrap { overflow:auto; max-height:66vh; border:1px solid var(--line); border-radius:6px; }
+  table { border-collapse:collapse; width:100%; }
+  th,td { padding:3px 6px; border-bottom:1px solid var(--row); white-space:nowrap; text-align:left; }
+  th { position:sticky; top:0; background:var(--th); font-weight:600; font-size:12px; z-index:2; }
+  th.rot { height:128px; vertical-align:bottom; padding:2px 0; text-align:center; }
+  th.rot span { writing-mode:vertical-rl; transform:rotate(180deg); display:inline-block; font-weight:500; }
+  th.grp, td.grp { border-left:2px solid var(--bar-line); }
+  td.c { text-align:center; }
+  tr.sel td { background:var(--sel); } tr.new td { background:var(--new); }
+  input.t, select.t, input.n { border:1px solid transparent; background:transparent; padding:2px 4px; font:inherit; border-radius:4px; }
+  input.t:hover, select.t:hover, input.n:hover, input.t:focus, select.t:focus, input.n:focus { border-color:var(--line); background:var(--inset); }
+  input.t:focus, select.t:focus, input.n:focus { outline:2px solid var(--focus); }
+  td select.t { max-width:215px; }
+  input.n { width:60px; } input.t.name { width:150px; } input.t.code { width:70px; font-family:ui-monospace,monospace; }
+  .hint { color:var(--mute); font-size:12px; margin:6px 0; }
+  .err { color:var(--bad); background:var(--bad-bg); border:1px solid var(--bad-line); padding:8px 10px; border-radius:6px; margin:8px 16px; display:none; white-space:pre-wrap; }
+  .ok { color:var(--good); background:var(--good-bg); border:1px solid var(--good-line); padding:8px 10px; border-radius:6px; margin:8px 16px; display:none; }
+  .draft { background:var(--draft-bg); border:1px solid var(--draft-line); padding:8px 10px; border-radius:6px; margin:8px 16px; display:none; }
+  textarea { width:100%; min-height:90px; font:12px ui-monospace,monospace; padding:6px; border:1px solid var(--line); border-radius:6px; }
+  #drop { padding:40px; text-align:center; border:2px dashed var(--line); border-radius:10px; background:var(--card); color:var(--mute); }
+  details { margin:8px 0; } summary { cursor:pointer; font-weight:600; }
+  .bus-grid { display:grid; grid-template-columns:minmax(380px,1fr) minmax(420px,1fr); gap:14px; align-items:start; }
+  .bus-right { position:sticky; top:62px; max-height:calc(100vh - 76px); overflow:auto; }
+  @media (max-width:1050px) { .bus-grid { grid-template-columns:1fr; } .bus-right { position:static; max-height:none; } }
+  .busmain { border:2px solid var(--bar-line); border-radius:10px; padding:10px; margin-bottom:12px; background:var(--card); }
+  .busrun { border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:8px 0; background:var(--soft); }
+  .busdev { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:4px 0; } .busdev select { max-width:200px; } .busdev button { padding:3px 8px; } .busdev input[type=text] { width:120px; }
+  label.bl, .row label.bl, .bar label.bl { display:inline-flex; flex-direction:row; align-items:center; gap:6px; font-size:12px; color:var(--mute); }
+  .iss { display:flex; gap:8px; padding:5px 8px; border-radius:6px; margin:4px 0; } .iss.error { background:var(--bad-bg); color:var(--bad); } .iss.warn { background:var(--warn-bg); color:var(--warn-ink); } .iss.info { background:var(--soft); }
+  @media print { header, nav, .noprint, .bus-left, #msg, #okmsg, #draftbar { display:none !important; } .bus-grid { display:block; } .bus-right { position:static; max-height:none; overflow:visible; } body { background:#fff; color:#000; } }
+  button.danger { background:var(--bad); border-color:var(--bad); color:#fff; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(520px,1fr)); gap:12px; }
+  .card { border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:var(--card); }
+  .card h3 { margin:0 0 8px; font-size:14px; display:flex; gap:8px; align-items:center; }
+  .card h4 { margin:10px 0 4px; font-size:12px; color:var(--mute); text-transform:uppercase; letter-spacing:.04em; }
+  .row { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:flex-end; }
+  .row label { display:flex; flex-direction:column; font-size:12px; color:var(--mute); gap:2px; }
+  .cbgrid .cb { white-space:normal; align-items:flex-start; margin-right:0; }
+  .cb { display:inline-flex; align-items:center; gap:4px; font-size:13px; margin-right:12px; white-space:nowrap; }
+  .cbgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:2px 10px; }
+  .issue { display:flex; gap:10px; align-items:center; padding:6px 10px; border-bottom:1px solid var(--row); }
+  .issue .lv { font-weight:700; width:60px; } .issue.e .lv { color:var(--bad); } .issue.w .lv { color:var(--warn); } .issue.i .lv { color:var(--info); }
+  .stat { display:inline-block; padding:6px 12px; margin:0 8px 8px 0; background:var(--soft); border:1px solid var(--line); border-radius:8px; } .stat b { font-size:18px; display:block; }
+  kbd { background:var(--row); border:1px solid var(--line); border-radius:4px; padding:0 4px; font-size:11px; }
+  .modal { position:fixed; inset:0; background:rgba(16,24,40,.45); display:none; align-items:center; justify-content:center; z-index:20; }
+  .modal .box { background:var(--card); color:var(--ink); border-radius:10px; padding:16px 18px; width:min(720px,94vw); max-height:88vh; overflow:auto; }
+  .modal h2 { margin:0 0 8px; font-size:16px; }
+  pre.log { background:var(--soft); border:1px solid var(--line); border-radius:6px; padding:8px; max-height:300px; overflow:auto; font:12px ui-monospace,monospace; white-space:pre-wrap; }
+</style>
+<script>
+(function () {
+  var mode = 'auto', mq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+  try { mode = localStorage.getItem('elktheme') || 'auto'; } catch (e) { }
+  function apply() { document.documentElement.setAttribute('data-theme', mode === 'dark' || (mode === 'auto' && mq && mq.matches) ? 'dark' : 'light'); }
+  apply(); if (mq && mq.addEventListener) mq.addEventListener('change', apply);
+  window.__theme = function () { return mode; };
+  window.__setTheme = function (m) { mode = m; try { localStorage.setItem('elktheme', m); } catch (e) { } apply(); };
+})();
+</script>
+</head>
+<body>
+<header>
+  <h1>Elk account editor</h1>
+  <span class="file" id="fileName">no file open</span><span id="dirty">● unsaved changes</span>
+  <span style="flex:1"></span>
+  <button id="undoBtn" disabled title="Ctrl+Z">Undo</button><button id="redoBtn" disabled title="Ctrl+Y">Redo</button><span style="position:relative;display:inline-block"><button id="histBtn" disabled title="List of recent changes">History ▾</button><div id="histBox"></div></span>
+  <button id="themeBtn" title="Colours: follow this computer (auto), light or dark">Theme: auto</button>
+  <button id="openBtn">Open export file…</button>
+  <button id="panelBtn" title="Read from, compare with and send to the panel over the network">Panel…</button>
+  <button id="saveBtn" class="primary" disabled>Save edited export…</button>
+  <input type="file" id="fileIn" hidden>
+  <input type="file" id="zoneIn" accept=".xlsx,.csv,.tsv,.txt" hidden>
+  <input type="file" id="busIn" accept=".json" hidden>
+</header>
+<div id="msg" class="err"></div><div id="okmsg" class="ok"></div><div id="draftbar" class="draft"></div>
+<div id="welcome" style="padding:16px"><div id="drop">Drop an ElkRP <b>Export Account</b> file here, or click <b>Open export file…</b><br><br>
+  Edit zones, users, areas, keypads, telephones and report codes on as few screens as possible, then <b>Save</b> and load the result in ElkRP with <b>File &gt; Import Account</b>, or send it straight to the panel with <b>Panel…</b>.
+  <div style="margin-top:18px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+    <button id="newBtn" class="primary">New blank account</button>
+    <button id="pullBtn">Read an account from a panel…</button>
+    <button id="busBtn" title="Plan the M1 data bus: runs, hubs, devices and termination, checked against ELK’s rules">Plan the data bus…</button>
+  </div></div></div>
+<div id="app" hidden>
+  <nav id="tabs"></nav>
+  <main><div class="panel" id="panel"></div></main>
+</div>
+<div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
+
+<script>
+let META, MODEL, TAB = 'overview', SEL = new Set(), FILE = '';
+const $ = (s, el = document) => el.querySelector(s);
+const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'class') e.className = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids.flat()) if (c != null) e.append(c.nodeType ? c : document.createTextNode(c)); return e; };
+function showErr(t) { const m = $('#msg'); m.textContent = t; m.style.display = t ? 'block' : 'none'; if (t) $('#okmsg').style.display = 'none'; }
+function showOk(t) { const m = $('#okmsg'); m.textContent = t; m.style.display = t ? 'block' : 'none'; if (t) $('#msg').style.display = 'none'; }
+const pad3 = n => String(n).padStart(3, '0');
+
+// ---- range parsing: "1-16, 20, 33-40" -> [numbers]
+function parseRange(s, max) {
+  const out = new Set();
+  for (const part of s.split(/[,\s]+/).filter(Boolean)) {
+    const m = part.match(/^(\d+)(?:-(\d+))?$/); if (!m) throw new Error(`"${part}" is not a number or range like 1-16`);
+    const a = +m[1], b = +(m[2] ?? m[1]); if (a < 1 || b > max || b < a) throw new Error(`"${part}" is outside 1-${max}`);
+    for (let i = a; i <= b; i++) out.add(i);
+  }
+  return [...out].sort((x, y) => x - y);
+}
+const has = (o, k) => o.flags.includes(k);
+function setFlag(o, k, on) { const i = o.flags.indexOf(k); if (on && i < 0) o.flags.push(k); if (!on && i >= 0) o.flags.splice(i, 1); }
+
+// ---- tri-state flag picker (leave / on / off) used by the bulk panels
+function triFlags(defs, state) {
+  const wrap = el('div', { class: 'flags' });
+  for (const d of defs) {
+    state[d.key] = 0;
+    const b = el('span', { class: 'flag3', 'data-s': 0, title: 'click: leave as is → set → clear' }, d.label);
+    b.onclick = () => { state[d.key] = state[d.key] === 0 ? 1 : state[d.key] === 1 ? -1 : 0; b.dataset.s = state[d.key]; b.textContent = (state[d.key] === 1 ? '✓ ' : state[d.key] === -1 ? '✗ ' : '') + d.label; };
+    wrap.append(b);
+  }
+  return wrap;
+}
+const opts = (list, cur, numbered = true) => list.map((t, i) => el('option', { value: i, selected: i === cur }, numbered ? `${String(i).padStart(2, '0')} = ${t}` : t));
+const sel = (list, cur, on, numbered = true, cls = 't') => { const s = el('select', { class: cls }, opts(list, cur, numbered)); s.onchange = () => on(+s.value); return s; };
+const text = (cur, on, cls = 'name', max = 16) => { const i = el('input', { class: 't ' + cls, value: cur, maxlength: max }); i.oninput = () => on(i.value); return i; };
+const num = (cur, on, min = 0, max = 255) => { const i = el('input', { class: 'n', type: 'number', value: cur, min, max }); i.oninput = () => on(+i.value); return i; };
+const chk = (cur, on) => { const i = el('input', { type: 'checkbox', checked: cur }); i.onchange = () => on(i.checked); return i; };
+const AREAS8 = [1, 2, 3, 4, 5, 6, 7, 8].map(n => 'Area ' + n);
+const tbl = (head, body, cls = '') => el('div', { class: 'tablewrap ' + cls }, el('table', {}, el('thead', {}, head), el('tbody', {}, body)));
+
+// ---- undo / redo / unsaved changes / draft ----------------------------------------------------------------------------
+// UNDO holds earlier model states, REDO later ones (JSON text). Each step is described by comparing it with the state after it.
+let PREV = '', UNDO = [], REDO = [], LASTPUSH = 0, DIRTY = false;
+const GBYTE = { 0: 'clock, date, temperature, code length or cross-zone options', 1: 'cross zone verify time', 2: 'fast loop response', 3: 'slow loop response', 4: 'rings or two-way volume', 5: 'areas common to area 1', 6: 'output 1 volume', 7: 'output 1 volume or output 2 lock out', 8: 'output 2 delay', 9: 'voice messages or output 2 hookup', 10: 'two-way callback time', 14: 'wireless jam detect', 15: 'CS verify time', 16: 'wrong code lock-out', 28: 'UPB address', 29: 'telephone line fault timer or control', 30: 'serial text or menu code option', 35: 'baud rate or listen-in', 47: 'country' };
+const gbyteName = i => i >= 17 && i <= 22 ? 'local programming code' : i >= 31 && i <= 34 ? 'daylight saving dates' : i >= 36 && i <= 46 ? 'modem values' : (GBYTE[i] || 'setting ' + i);
+const KEYNAME = { zones: 'Zone', users: 'User', areas: 'Area', keypads: 'Keypad', phones: 'Telephone' };
+const COMMNAME = { zones: 'Zone', users: 'User', areas: 'Area', keypads: 'Keypad' };
+const nice = k => k.replace(/([A-Z])/g, ' $1').toLowerCase();
+function changeGroups(a, b) {
+  const groups = new Map(), add = (who, what) => { if (!groups.has(who)) groups.set(who, new Set()); if (what) groups.get(who).add(what); };
+  const same = (x, y) => JSON.stringify(x) === JSON.stringify(y);
+  const keys = (x, y) => [...new Set([...Object.keys(x || {}), ...Object.keys(y || {})])];
+  for (const k of keys(a, b)) {
+    const x = a[k], y = b[k]; if (same(x, y) || k === 'prune') continue;
+    if (KEYNAME[k] && Array.isArray(x) && Array.isArray(y)) {
+      const mx = new Map(x.map(e => [e.n, e])), my = new Map(y.map(e => [e.n, e]));
+      for (const n of [...new Set([...mx.keys(), ...my.keys()])].sort((p, q) => p - q)) {
+        const who = KEYNAME[k] + ' ' + n, ex = mx.get(n), ey = my.get(n);
+        if (!ex) add(who, 'added'); else if (!ey) add(who, 'deleted'); else if (!same(ex, ey)) keys(ex, ey).filter(f => !same(ex[f], ey[f])).forEach(f => add(who, nice(f)));
+      }
+    } else if (k === 'globals') { (y || []).forEach((v, i) => { if (!x || x[i] !== v) add('Globals', gbyteName(i)); }); }
+    else if (k === 'wireless') {
+      const start = ((((y || x)[0] || [])[2] || 0) & 0xF8) + 1;
+      (y || []).forEach((blk, b) => blk.forEach((v, i) => {
+        if (x && x[b] && x[b][i] === v) return;
+        const slot = i >= 4 && i < 52 ? i - 4 : i >= 52 && i < 100 ? i - 52 : i >= 116 ? Math.floor((i - 116) / 3) : -1;
+        const what = i < 4 ? 'receiver settings' : i < 52 ? 'device options' : i < 100 ? 'key fob user' : i < 116 ? 'event settings' : 'transmitter ID';
+        add(slot >= 0 ? 'Wireless zone ' + (start + 48 * b + slot) : 'Wireless', what);
+      }));
+    }
+    else if (k === 'zoneGroups') { (y || []).forEach((v, i) => { if (!x || x[i] !== v) add('Wireless zone groups', 'group ' + (i + 1)); }); }
+    else if (k === 'comm') {
+      for (const sub of keys(x, y)) {
+        if (same((x || {})[sub], (y || {})[sub])) continue;
+        const sx = (x || {})[sub], sy = (y || {})[sub];
+        if (COMMNAME[sub] && Array.isArray(sx) && Array.isArray(sy)) {
+          const mx = new Map(sx.map(e => [e.n, e])), my = new Map(sy.map(e => [e.n, e]));
+          for (const n of [...new Set([...mx.keys(), ...my.keys()])].sort((p, q) => p - q)) if (!same(mx.get(n), my.get(n))) add(COMMNAME[sub] + ' ' + n, 'report codes');
+        } else add('System events', sub === 'system' ? 'system report codes' : nice(sub));
+      }
+    }
+    else add('Account', nice(k));
+  }
+  return groups;
+}
+function describe(aJson, bJson) {
+  let g; try { g = changeGroups(JSON.parse(aJson), JSON.parse(bJson)); } catch (e) { return 'change'; }
+  if (!g.size) return 'change';
+  const parts = [...g].map(([who, what]) => { const w = [...what]; return who + (w.length ? ': ' + w.slice(0, 3).join(', ') + (w.length > 3 ? ', …' : '') : ''); });
+  return parts.length <= 3 ? parts.join('; ') : parts.slice(0, 2).join('; ') + `; … (${parts.length} items changed)`;
+}
+function setDirty(v) {
+  DIRTY = v; $('#dirty').style.display = v ? 'inline' : 'none'; document.title = (v ? '* ' : '') + 'Elk account editor';
+  $('#undoBtn').disabled = !UNDO.length; $('#redoBtn').disabled = !REDO.length; $('#histBtn').disabled = !UNDO.length && !REDO.length;
+}
+function track(force) {
+  if (!MODEL) return;
+  const cur = JSON.stringify(MODEL); if (cur === PREV) return;
+  const now = Date.now();
+  if (PREV && (force || now - LASTPUSH > 700)) { UNDO.push(PREV); if (UNDO.length > 200) UNDO.shift(); }
+  LASTPUSH = now; REDO = []; PREV = cur; setDirty(true);
+  try { localStorage.setItem('elkdraft:' + FILE, JSON.stringify({ t: Date.now(), model: cur })); } catch (e) { }
+}
+function undo(n = 1) { let did = false; while (n-- > 0 && UNDO.length) { REDO.push(PREV); PREV = UNDO.pop(); did = true; } if (did) { MODEL = JSON.parse(PREV); render(); setDirty(true); } }
+function redo(n = 1) { let did = false; while (n-- > 0 && REDO.length) { UNDO.push(PREV); PREV = REDO.pop(); did = true; } if (did) { MODEL = JSON.parse(PREV); render(); setDirty(true); } }
+$('#undoBtn').onclick = () => undo(); $('#redoBtn').onclick = () => redo();
+$('#undoBtn').onmouseenter = () => { $('#undoBtn').title = UNDO.length ? 'Undo: ' + describe(UNDO[UNDO.length - 1], PREV) + '  (Ctrl+Z)' : 'Ctrl+Z'; };
+$('#redoBtn').onmouseenter = () => { $('#redoBtn').title = REDO.length ? 'Redo: ' + describe(PREV, REDO[REDO.length - 1]) + '  (Ctrl+Y)' : 'Ctrl+Y'; };
+// History: a list of the recent changes, newest first; clicking one goes back (or forward) to the state just before (or after) it
+$('#histBtn').onclick = e => {
+  e.stopPropagation(); const box = $('#histBox');
+  if (box.style.display === 'block') { box.style.display = 'none'; return; }
+  const rows = [], items = [];
+  const redoStates = [...REDO].reverse();                       // nearest redo state first
+  const redoList = redoStates.map((s, i) => ({ label: describe(i === 0 ? PREV : redoStates[i - 1], s), steps: i + 1 }));
+  redoList.slice(0, 20).reverse().forEach(r => items.push(el('div', { class: 'hrow later', title: 'Redo to here', onclick: () => { box.style.display = 'none'; redo(r.steps); } }, el('span', { class: 'hn' }, 'redo'), r.label)));
+  items.push(el('div', { class: 'hrow now' }, el('span', { class: 'hn' }, 'now'), 'Current state'));
+  for (let i = UNDO.length - 1, shown = 0; i >= 0 && shown < 40; i--, shown++) {
+    const label = describe(UNDO[i], i + 1 < UNDO.length ? UNDO[i + 1] : PREV), steps = UNDO.length - i;
+    items.push(el('div', { class: 'hrow', title: 'Undo back to before this change', onclick: () => { box.style.display = 'none'; undo(steps); } }, el('span', { class: 'hn' }, steps === 1 ? 'undo' : 'undo ' + steps), label));
+  }
+  box.replaceChildren(el('div', { class: 'hhead' }, 'Click a change to go back to just before it'), ...items); box.style.display = 'block';
+};
+document.addEventListener('click', e => { const b = $('#histBox'); if (b.style.display === 'block' && !b.contains(e.target)) b.style.display = 'none'; });
+document.addEventListener('keydown', e => {
+  if (!MODEL || !(e.ctrlKey || e.metaKey) || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
+});
+window.addEventListener('beforeunload', e => { if (DIRTY) { e.preventDefault(); e.returnValue = ''; } });
+$('#panel').addEventListener('input', () => track(false));
+$('#panel').addEventListener('change', () => track(false));
+
+// ---- spreadsheet-style entry for every table: Enter / arrows move, Ctrl+D fills down, multi-cell paste -----------------
+const ctrlsOf = tr => [...tr.querySelectorAll('input,select')].filter(x => !x.disabled);
+function setCell(x, v) {
+  v = String(v).trim();
+  if (x.type === 'checkbox') { x.checked = /^(1|true|yes|y|x|on|✓)$/i.test(v); x.dispatchEvent(new Event('change', { bubbles: true })); return; }
+  if (x.tagName === 'SELECT') {
+    // a bare number means the number shown in the list ("04 = Burglar…", "Area 3"), not the option's internal index
+    const byShown = /^\d+$/.test(v) ? [...x.options].find(o => new RegExp('^0*' + +v + '(\\D|$)').test(o.text) || new RegExp('\\s' + +v + '$').test(o.text)) : null;
+    const o = byShown || [...x.options].find(o => o.text.toLowerCase() === v.toLowerCase()) || [...x.options].find(o => o.text.toLowerCase().includes(v.toLowerCase())) || [...x.options].find(o => o.value === v);
+    if (!o) return; x.value = o.value; x.dispatchEvent(new Event('change', { bubbles: true })); return;
+  }
+  x.value = v; x.dispatchEvent(new Event('input', { bubbles: true })); x.dispatchEvent(new Event('change', { bubbles: true }));
+}
+function cellAt(tIdx, r, c) { const t = document.querySelectorAll('#panel table')[tIdx]; const row = t && t.tBodies[0] && t.tBodies[0].rows[r]; return row && ctrlsOf(row)[c]; }
+document.addEventListener('keydown', e => {
+  const t = e.target; if (!t.matches || !t.matches('#panel td input, #panel td select')) return;
+  const tr = t.closest('tr'), rows = [...tr.parentElement.rows], ri = rows.indexOf(tr), ci = ctrlsOf(tr).indexOf(t);
+  const go = (r, c) => { const x = rows[r] && ctrlsOf(rows[r])[c]; if (x) { e.preventDefault(); x.focus(); if (x.select && x.type !== 'checkbox') x.select(); } };
+  if (e.key === 'Enter') go(ri + (e.shiftKey ? -1 : 1), ci);
+  else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && t.tagName !== 'SELECT') go(ri + (e.key === 'ArrowDown' ? 1 : -1), ci);
+  else if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey) && ri > 0) {
+    const src = ctrlsOf(rows[ri - 1])[ci]; if (!src) return; e.preventDefault();
+    setCell(t, src.type === 'checkbox' ? (src.checked ? '1' : '0') : src.tagName === 'SELECT' ? src.value : src.value);
+  }
+});
+document.addEventListener('paste', e => {
+  const t = e.target; if (!t.matches || !t.matches('#panel td input, #panel td select')) return;
+  const txt = (e.clipboardData || window.clipboardData).getData('text'); if (!/[\t\n]/.test(txt.replace(/\r?\n$/, ''))) return;   // single value: normal paste
+  e.preventDefault();
+  const table = t.closest('table'), tIdx = [...document.querySelectorAll('#panel table')].indexOf(table), tr = t.closest('tr');
+  const r0 = [...tr.parentElement.rows].indexOf(tr), c0 = ctrlsOf(tr).indexOf(t);
+  const grid = txt.replace(/\r?\n$/, '').split(/\r?\n/).map(l => l.split('\t'));
+  let n = 0; grid.forEach((line, dr) => line.forEach((v, dc) => { const x = cellAt(tIdx, r0 + dr, c0 + dc); if (x) { setCell(x, v); n++; } }));
+  track(true); showOk(`Pasted ${n} cell(s) starting at the selected cell.`);
+});
+
+// ---- report-code helpers (communicator data kept next to the thing it belongs to) ---------------------------------------
+// One byte per event: 00 off, 01 new events/opens, 03 restorals and closings.
+const onVal = restore => restore ? 3 : 1;
+function zoneRc(n, create) {
+  const C = MODEL.comm; if (!C) return null;
+  let r = C.zones.find(x => x.n === n);
+  if (!r && create) { r = { n, codes: [1, 0, 0, 1] }; C.zones.push(r); C.zones.sort((a, b) => a.n - b.n); }
+  return r || null;
+}
+function userRc(n, create) {
+  const C = MODEL.comm; if (!C) return null;
+  let r = C.users.find(x => x.n === n);
+  if (!r && create) { r = { n, close: 0, open: 0 }; C.users.push(r); C.users.sort((a, b) => a.n - b.n); }
+  return r || null;
+}
+function areaRc(n, create) {
+  const C = MODEL.comm; if (!C) return null;
+  let r = C.areas.find(x => x.n === n);
+  if (!r && create) { r = { n, abortTime: 0, cancelTime: 0, codes: Array(17).fill(0) }; C.areas.push(r); C.areas.sort((a, b) => a.n - b.n); }
+  return r || null;
+}
+function keypadRc(n, create) {
+  const C = MODEL.comm; if (!C) return null;
+  let r = C.keypads.find(x => x.n === n);
+  if (!r && create) { r = { n, codes: Array(6).fill(0) }; C.keypads.push(r); C.keypads.sort((a, b) => a.n - b.n); }
+  return r || null;
+}
+// a checkbox for one report code; get/set read and write the byte, creating the row on first change
+function rcBox(get, set, restore, title) {
+  const v = get(), i = el('input', { type: 'checkbox', checked: v !== 0, title: title || (v === 0 ? 'off (00)' : String(v).padStart(2, '0') + (v === onVal(restore) ? '' : ' (not the standard ' + String(onVal(restore)).padStart(2, '0') + ')')) });
+  i.onchange = () => set(i.checked ? onVal(restore) : 0); return i;
+}
+
+// ---- deleting: two-click buttons; deleting turns on MODEL.prune so the saved file / sent records really lose them ----------
+function armBtn(label, labelNow, action) {
+  const b = el('button', {}, label); let armed = false, t;
+  b.onclick = () => {
+    if (!armed) { try { b.textContent = labelNow() + ' — click again to confirm'; } catch (e) { showErr(e.message); return; } armed = true; clearTimeout(t); t = setTimeout(() => { armed = false; b.textContent = label; }, 5000); return; }
+    armed = false; clearTimeout(t); b.textContent = label;
+    try { action(); } catch (e) { showErr(e.message); }
+  };
+  return b;
+}
+function dropZones(pred) {
+  const gone = new Set(MODEL.zones.filter(pred).map(z => z.n));
+  if (!gone.size) throw new Error('No zones match.');
+  if (gone.size >= MODEL.zones.length) throw new Error('An account needs at least one zone.');
+  MODEL.zones = MODEL.zones.filter(z => !gone.has(z.n)); if (MODEL.comm) MODEL.comm.zones = MODEL.comm.zones.filter(z => !gone.has(z.n));
+  gone.forEach(n => SEL.delete(n)); MODEL.prune = true; showErr(''); showOk('Deleted ' + gone.size + ' zone(s). Save or send to apply; Undo brings them back.'); render();
+}
+const SPECIAL_USERS = { 201: 'Installer', 202: 'ElkRP', 203: 'No Code' };          // ElkRP's own names for the fixed slots above 199
+const NO_DELETE = 'User 1 and the special codes (201 Installer, 202 ElkRP, 203 No Code) are fixed slots and cannot be deleted.';
+function dropUsers(nums) {
+  const gone = new Set(nums.filter(n => n !== 1 && n <= 199));
+  if (!gone.size) throw new Error(NO_DELETE);
+  MODEL.users = MODEL.users.filter(u => !gone.has(u.n)); if (MODEL.comm) MODEL.comm.users = MODEL.comm.users.filter(u => !gone.has(u.n));
+  MODEL.prune = true; showErr(''); showOk('Deleted ' + gone.size + ' user(s).'); render();
+}
+
+// ---- ZONES: import a zone list from Excel/CSV, export the zones as Excel/CSV ----------------------------------------------------
+const ZIMP = { note: '', warn: [] };
+async function zonesImportBytes(name, buf) {
+  try {
+    const r = await fetch('/api/zones/read?name=' + encodeURIComponent(name), { method: 'POST', body: buf });
+    if (!r.ok) { showErr(await r.text()); return; }
+    const d = await r.json();
+    if (!d.rows.length) { showErr('No zone rows were found in ' + name + '.' + (d.warnings.length ? ' ' + d.warnings[0] : '')); return; }
+    let added = 0, renamed = 0, other = 0; const fresh = [];
+    for (const row of d.rows) {
+      let z = MODEL.zones.find(x => x.n === row.n);
+      if (!z) { z = { n: row.n, name: 'Zone ' + pad3(row.n), definition: 0, type: 0, area: 1, flags: [], defaultVoice: true, isNew: true }; MODEL.zones.push(z); zoneRc(row.n, true); added++; fresh.push(z); }
+      if (row.name != null && row.name !== z.name) { z.name = row.name; renamed++; }
+      if (row.definition != null && row.definition !== z.definition) { z.definition = row.definition; other++; }
+      if (row.type != null && row.type !== z.type) { z.type = row.type; other++; }
+      if (row.area != null && row.area !== z.area) { z.area = row.area; other++; }
+    }
+    MODEL.zones.sort((a, b) => a.n - b.n);
+    ZIMP.warn = d.warnings;
+    if (added) { const off = fresh.filter(z => z.definition === 0).length; ZIMP.warn.unshift(added + ' zone(s) were not in the account and were added' + (off ? '; ' + off + ' of them are Disabled' + (d.columns.includes('Definition') ? ' because the sheet had no definition for them' : ' (the sheet has no Definition column), so set their definition on the grid') : ' with the definition from the sheet') + '.'); }
+    ZIMP.note = name + ': ' + d.rows.length + ' zone row(s) read (columns: ' + d.columns.join(', ') + '). ' + renamed + ' name(s) changed' + (other ? ', ' + other + ' other value(s) changed' : '') + '. Use Undo or History to take it back.';
+    showErr(''); showOk(''); render();
+  } catch (e) { showErr(String(e.message || e)); }
+}
+// The Alarm Zone List ELK spreadsheet (the commissioning checklist template) with zone names, definition codes and areas filled in.
+async function zonesExportAlarmList() {
+  try {
+    const body = modelBody(); const r = await fetch('/api/export-alarm-list?title=' + encodeURIComponent(MODEL.account || ''), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ zones: body.zones, account: MODEL.account }) });
+    if (!r.ok) { showErr(await r.text()); return; }
+    const blob = await r.blob(), name = FILE.replace(/\.[^.]*$/, '') + ' Alarm Zone List.xlsx';
+    if (NATIVE) { window.external.sendMessage(JSON.stringify({ cmd: 'saveFile', purpose: 'zones', ext: '.xlsx', name, b64: toB64(await blob.arrayBuffer()) })); return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    showErr(''); showOk('Saved ' + name + '.');
+  } catch (e) { showErr(String(e.message || e)); }
+}
+async function zonesExport(format, all) {
+  try {
+    const body = modelBody(); const r = await fetch('/api/zones/export?format=' + format + (all ? '&all=1' : ''), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ zones: body.zones }) });
+    if (!r.ok) { showErr(await r.text()); return; }
+    const blob = await r.blob(), name = FILE.replace(/\.[^.]*$/, '') + ' zones.' + format;
+    if (NATIVE) { window.external.sendMessage(JSON.stringify({ cmd: 'saveFile', purpose: 'zones', ext: '.' + format, name, b64: toB64(await blob.arrayBuffer()) })); return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    showErr(''); showOk('Saved ' + name + ' (' + body.zones.filter(z => all || z.definition !== 0).length + ' zones).');
+  } catch (e) { showErr(String(e.message || e)); }
+}
+$('#zoneIn').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (f) await zonesImportBytes(f.name, await f.arrayBuffer()); };
+const ZF = { q: '', area: '', show: 'all' };
+const ZRC = [['Alarm', false], ['Restore', true], ['Bypass', false], ['Trouble', false]];
+function zonesTab(p) {
+  const defs = META.zoneDefinitions, types = META.zoneTypes, comm = !!MODEL.comm;
+  const bulk = { flags: {}, rc: {} };
+
+  // ---- bulk edit bar
+  const selTxt = el('input', { type: 'text', size: 22, placeholder: 'e.g. 1-16, 20, 33-40' });
+  const bDef = el('select', {}, el('option', { value: '' }, '(leave)'), defs.map((t, i) => el('option', { value: i }, `${String(i).padStart(2, '0')} = ${t}`)));
+  const bType = el('select', {}, el('option', { value: '' }, '(leave)'), types.map((t, i) => el('option', { value: i }, `${i} = ${t}`)));
+  const bArea = el('select', {}, el('option', { value: '' }, '(leave)'), AREAS8.map((t, i) => el('option', { value: i + 1 }, t)));
+  const bVoice = el('input', { type: 'checkbox' });
+  const bName = el('input', { type: 'text', size: 18, placeholder: 'e.g. Zone {n}   (optional)' });
+  const bFlags = triFlags(META.zoneFlags, bulk.flags);
+  const bRc = triFlags(ZRC.map(([l], i) => ({ key: 'rc' + i, label: l })), bulk.rc);
+  const apply = el('button', { class: 'primary' }, 'Apply to selected');
+  function applyTo(rows) {
+    for (const z of rows) {
+      if (bDef.value !== '') z.definition = +bDef.value;
+      if (bType.value !== '') z.type = +bType.value;
+      if (bArea.value !== '') z.area = +bArea.value;
+      if (bName.value) z.name = bName.value.replace(/\{n\}/g, z.n).replace(/\{n3\}/g, pad3(z.n)).slice(0, 16);
+      for (const [k, v] of Object.entries(bulk.flags)) if (v) setFlag(z, k, v === 1);
+      if (bVoice.checked) z.defaultVoice = true;
+      if (comm) ZRC.forEach(([, restore], i) => { const v = bulk.rc['rc' + i]; if (v) zoneRc(z.n, true).codes[i] = v === 1 ? onVal(restore) : 0; });
+    }
+  }
+  const bar = el('div', { class: 'bar' },
+    el('label', {}, 'Zones to change', selTxt),
+    el('label', {}, 'Definition', bDef), el('label', {}, 'Type', bType), el('label', {}, 'Area', bArea), el('label', {}, 'Name pattern', bName),
+    el('label', {}, 'Voice', el('span', {}, bVoice, ' reset to “Zone nnn”')),
+    el('label', { style: 'flex-basis:100%' }, 'Attributes (click: set ✓ → clear ✗ → leave)', bFlags),
+    comm ? el('label', { style: 'flex-basis:100%' }, 'Report to central station (click: set ✓ → clear ✗ → leave)', bRc) : null,
+    apply);
+  apply.onclick = () => {
+    try {
+      let rows = MODEL.zones.filter(z => SEL.has(z.n));
+      if (selTxt.value.trim()) {
+        const want = new Set(parseRange(selTxt.value, 208));
+        for (const n of [...want].filter(n => !MODEL.zones.some(z => z.n === n))) { MODEL.zones.push({ n, name: 'Zone ' + pad3(n), definition: 3, type: 0, area: 1, flags: [], defaultVoice: true, isNew: true }); zoneRc(n, true); }
+        MODEL.zones.sort((a, b) => a.n - b.n);
+        rows = MODEL.zones.filter(z => want.has(z.n) || SEL.has(z.n));
+      }
+      if (!rows.length) throw new Error('Pick zones first: tick rows below or type a range such as 1-16.');
+      applyTo(rows); showErr(''); showOk(`Changed ${rows.length} zone(s).`); render();
+    } catch (e) { showErr(e.message); }
+  };
+
+  // ---- filter bar (rebuilds only the rows so typing keeps focus)
+  const fq = el('input', { type: 'search', placeholder: 'name or number', value: ZF.q, size: 16 });
+  const fa = el('select', {}, el('option', { value: '' }, 'any area'), AREAS8.map((t, i) => el('option', { value: i + 1, selected: ZF.area == i + 1 }, t)));
+  const fs = el('select', {}, [['all', 'all zones'], ['defined', 'defined only (not “Disabled”)'], ['wireless', 'wireless only'], ['selected', 'ticked only']].map(([v, t]) => el('option', { value: v, selected: ZF.show === v }, t)));
+  const count = el('span', { class: 'hint' });
+  const visible = () => MODEL.zones.filter(z =>
+    (!ZF.q || (z.name.toLowerCase().includes(ZF.q.toLowerCase()) || String(z.n) === ZF.q.trim())) && (!ZF.area || z.area == ZF.area) &&
+    (ZF.show === 'all' || (ZF.show === 'defined' && z.definition !== 0) || (ZF.show === 'wireless' && isWireless(z.n)) || (ZF.show === 'selected' && SEL.has(z.n))));
+  const tbody = el('tbody');
+  function fillBody() {
+    const vis = visible();
+    tbody.replaceChildren(...vis.map(z => {
+      const tr = el('tr', { class: (SEL.has(z.n) ? 'sel ' : '') + (z.isNew ? 'new' : '') },
+        el('td', {}, chk(SEL.has(z.n), on => { on ? SEL.add(z.n) : SEL.delete(z.n); tr.classList.toggle('sel', on); })),
+        el('td', { title: isWireless(z.n) ? 'wireless zone' : '' }, z.n + (isWireless(z.n) ? ' (W)' : '')), el('td', {}, text(z.name, v => z.name = v)),
+        el('td', {}, sel(defs, z.definition, v => z.definition = v)),
+        el('td', {}, sel(types, z.type, v => z.type = v)),
+        el('td', {}, sel(AREAS8, z.area - 1, v => z.area = v + 1, false)),
+        META.zoneFlags.map(d => el('td', { class: 'c' }, chk(has(z, d.key), on => setFlag(z, d.key, on)))),
+        comm ? ZRC.map(([, restore], i) => el('td', { class: 'c' + (i === 0 ? ' grp' : '') }, rcBox(() => (zoneRc(z.n) || { codes: [0, 0, 0, 0] }).codes[i], v => { zoneRc(z.n, true).codes[i] = v; }, restore))) : null);
+      return tr;
+    }));
+    count.textContent = `Showing ${vis.length} of ${MODEL.zones.length} zones`;
+  }
+  fq.oninput = () => { ZF.q = fq.value; fillBody(); }; fa.onchange = () => { ZF.area = fa.value; fillBody(); }; fs.onchange = () => { ZF.show = fs.value; fillBody(); };
+  const selShown = el('button', {}, 'Tick shown'), selNone = el('button', {}, 'Clear ticks');
+  selShown.onclick = () => { visible().forEach(z => SEL.add(z.n)); render(); }; selNone.onclick = () => { SEL.clear(); render(); };
+  const delZ = armBtn('Delete ticked zones', () => { if (!SEL.size) throw new Error('Tick the zones to delete first.'); return 'Delete ' + SEL.size + ' ticked zone(s)'; }, () => dropZones(z => SEL.has(z.n)));
+  const keepN = el('input', { type: 'number', min: 1, max: 208, style: 'width:70px', placeholder: 'N' });
+  const keepBtn = armBtn('Keep only zones 1 to N', () => { const n = +keepN.value; if (!(n >= 1 && n <= 208)) throw new Error('Type N (1-208) next to the button: every zone above N is deleted.'); const c = MODEL.zones.filter(z => z.n > n).length; if (!c) throw new Error('There are no zones above ' + n + '.'); return 'Delete the ' + c + ' zone(s) above ' + n; }, () => dropZones(z => z.n > +keepN.value));
+  const filter = el('div', { class: 'bar plain' }, el('label', {}, 'Search', fq), el('label', {}, 'Area', fa), el('label', {}, 'Show', fs), selShown, selNone, count,
+    el('span', { style: 'flex:1' }), delZ, el('label', {}, 'Panel has N zones', keepN), keepBtn);
+
+  // ---- import / export a zone list (Excel .xlsx or CSV)
+  const exAll = el('input', { type: 'checkbox' });
+  const sheetBar = el('div', { class: 'bar plain' }, el('b', {}, 'Zone list'),
+    el('button', { onclick: () => NATIVE ? window.external.sendMessage(JSON.stringify({ cmd: 'openFile', purpose: 'zones' })) : $('#zoneIn').click() }, 'Import names from Excel / CSV…'),
+    el('span', { style: 'flex:1' }),
+    el('label', {}, exAll, ' include Disabled zones'),
+    el('button', { onclick: () => zonesExport('xlsx', exAll.checked) }, 'Export to Excel (.xlsx)'), el('button', { onclick: () => zonesExport('csv', exAll.checked) }, 'Export to CSV'),
+    el('button', { onclick: zonesExportAlarmList, title: 'Fill the Alarm Zone List checklist spreadsheet with zone name, definition code and area' }, 'Export Alarm Zone List…'));
+  const sheetHint = el('div', { class: 'hint' }, 'Import reads a sheet with a header row such as Zone, Name, Definition, Type, Area (any order; only Name is needed, and a sheet with just names is numbered from zone 1). Definition and Type can be the number or the text ElkRP shows. Zones not in the account are added as Disabled unless the sheet gives a Definition. Export writes Zone, Name, Definition, Type and Area for every zone that is not Disabled.');
+  const sheetNote = ZIMP.note ? el('div', { class: 'hint', style: 'color:var(--info)' }, ZIMP.note, ZIMP.warn.length ? el('ul', { style: 'margin:4px 0 0 18px;color:var(--warn)' }, ZIMP.warn.slice(0, 25).map(w => el('li', {}, w)), ZIMP.warn.length > 25 ? el('li', {}, '… and ' + (ZIMP.warn.length - 25) + ' more') : null) : null) : null;
+
+  // ---- paste import (CSV style)
+  const paste = el('textarea', { placeholder: 'Zone,Name,Definition,Type,Area,Attributes\n1,Front Door,1,0,1,Bypassable|Enable chime\n2,Garage Door,1,0,1,Bypassable' });
+  const pbtn = el('button', {}, 'Import pasted list');
+  const byLabel = Object.fromEntries(META.zoneFlags.flatMap(d => [[norm(d.label), d.key], [norm(d.key), d.key]]).concat([['fastloopresponse', 'fastLoop'], ['forcearmable', 'forceArm'], ['enablechime', 'chime'], ['incrosszonepool', 'crossZone'], ['usedialerdelay', 'dialerDelay'], ['silentalarm', 'silent'], ['swingershutdown', 'swinger']]));
+  function norm(s) { return s.toLowerCase().replace(/[^a-z]/g, ''); }
+  pbtn.onclick = () => {
+    try {
+      let n = 0;
+      for (const [i, line] of paste.value.split('\n').entries()) {
+        const l = line.trim(); if (!l || l.startsWith('#') || /^zone\b.*name/i.test(l)) continue;
+        const f = l.split(/\t|,/).map(s => s.trim()); if (f.length < 5) throw new Error(`line ${i + 1}: need Zone,Name,Definition,Type,Area[,Attributes]`);
+        const zn = +f[0]; if (!(zn >= 1 && zn <= 208)) throw new Error(`line ${i + 1}: zone must be 1-208`);
+        let z = MODEL.zones.find(x => x.n === zn);
+        if (!z) { z = { n: zn, flags: [], isNew: true }; MODEL.zones.push(z); zoneRc(zn, true); }
+        z.name = f[1].slice(0, 16); z.definition = +f[2]; z.type = +f[3]; z.area = +f[4]; z.defaultVoice = true; z.flags = [];
+        for (const a of (f[5] || '').split(/[|;]/).map(s => s.trim()).filter(Boolean)) { const k = byLabel[norm(a)]; if (!k) throw new Error(`line ${i + 1}: unknown attribute "${a}"`); z.flags.push(k); }
+        n++;
+      }
+      MODEL.zones.sort((a, b) => a.n - b.n); showErr(''); showOk(`Imported ${n} zone(s).`); render();
+    } catch (e) { showErr(e.message); }
+  };
+
+  const head = el('tr', {}, el('th', {}, ''), el('th', {}, 'Zone'), el('th', {}, 'Name'), el('th', {}, 'Definition'), el('th', {}, 'Type'), el('th', {}, 'Area'),
+    META.zoneFlags.map(d => el('th', { class: 'rot' }, el('span', {}, d.label))),
+    comm ? ZRC.map(([l], i) => el('th', { class: 'rot' + (i === 0 ? ' grp' : ''), title: 'Report to central station' }, el('span', {}, 'Report: ' + l))) : null);
+  fillBody();
+  p.append(
+    el('div', { class: 'hint' }, 'Everything about a zone is on this one grid, including what it reports. ', el('kbd', {}, 'Enter'), '/', el('kbd', {}, '↑↓'), ' move between rows, ', el('kbd', {}, 'Ctrl+D'), ' copies the cell above, and you can paste a column or block copied from Excel. Tick rows (or type a range) and use the bar to set many zones at once; typing a zone number that is not in the table adds it.'),
+    sheetBar, sheetHint, sheetNote, bar, filter,
+    el('div', { class: 'tablewrap' }, el('table', {}, el('thead', {}, head), tbody)),
+    el('details', {}, el('summary', {}, 'Paste a zone list (Zone, Name, Definition, Type, Area, Attributes)'), paste, el('div', {}, pbtn)));
+}
+
+// ---- WIRELESS GROUPS ------------------------------------------------------------------------------------------------
+function wirelessCount() { return MODEL.zoneGroups.filter((v, i) => i >= 1 && v === 1).length; }       // number of wireless groups (gaps are allowed: hardwired expanders use up groups)
+const isWireless = n => MODEL.zoneGroups[Math.floor((n - 1) / 16)] === 1 && n >= 17;
+const wirelessRun = () => { let k = 0; while (1 + k < MODEL.zoneGroups.length && MODEL.zoneGroups[1 + k] === 1) k++; return k; };
+function groupsTab(p) {
+  const k = wirelessRun(), custom = wirelessCount() !== k, max = Math.min(9, MODEL.zoneGroups.length - 1);
+  p.append(el('div', { class: 'hint' }, 'Elk rule: the first wireless zone is always zone 17 and no wireless zone may be above zone 160 (groups 2-10). Each group is 16 zones. A hardwired zone expander enrolled in zones 33-160 uses up one wireless group, so a file may have gaps; this selector sets an unbroken run from group 2. One wireless receiver can serve up to 144 zones (9 groups); at most 3 transceivers can be added, but they only extend range and do not change the number of groups.'));
+  const s = el('select', { class: 't' }, [...(custom ? [-1] : []), ...Array(max + 1).keys()].map(i => el('option', { value: i, selected: custom ? i === -1 : i === k }, i === -1 ? 'As in the file (not an unbroken run)' : i === 0 ? 'None' : `${i} group${i > 1 ? 's' : ''} (${16 * i} zones)`)));
+  const info = el('div', { class: 'hint' });
+  const upd = () => {
+    const on = MODEL.zoneGroups.map((v, i) => v === 1 ? i : -1).filter(i => i >= 0);
+    info.textContent = on.length ? 'Wireless zone groups on: ' + on.map(i => `group ${i + 1} (zones ${16 * i + 1}-${16 * i + 16})`).join(', ') + '.' : 'No wireless zones.';
+  };
+  s.onchange = () => { const n = +s.value; if (n < 0) return; MODEL.zoneGroups = MODEL.zoneGroups.map((_, i) => (i >= 1 && i <= n) ? 1 : 0); upd(); };
+  upd();
+  p.append(el('div', { class: 'bar' }, el('label', {}, 'Wireless zone groups', s)), info);
+  if (MODEL.zoneGroups.some((v, i) => v === 1 && (i === 0 || i > 9))) p.append(el('div', { class: 'err', style: 'display:block;margin:8px 0' }, 'This file has wireless groups that break the rule (group 1 on, or a group above zone 160). Choosing a group count above will rewrite them; saving without doing so is refused.'));
+}
+
+// ---- WIRELESS DEVICES (per-device bytes of the receiver blocks; positions from ElkRP's Wireless_Zones form and checked against exports) ----
+// Block b (0-2) covers 48 zones starting at (byte 2 of block 0 & 0xF8) + 1 + 48b. Per slot s: byte 4+s = flags (bit0 enabled, bits1-2 supervision, bit3 option 1, bit4 option 2, bit5 PIR,
+// bits6-7 hardwired loop), byte 52+s = key fob user number, bytes 116+3s..+2 = transmitter ID (3 bytes, shown by ElkRP as 7 hex digits with a leading 0).
+const WF = { all: false };
+function wirelessTab(p) {
+  const W = MODEL.wireless;
+  if (!W || !W.length) { p.append(el('div', { class: 'hint' }, 'The wireless receiver data was not found in this file.')); return; }
+  const start = (W[0][2] & 0xF8) + 1;
+  const inGroup = z => MODEL.zoneGroups[Math.floor((z - 1) / 16)] === 1;
+  const slots = [];
+  W.forEach((blk, b) => { for (let s = 0; s < 48; s++) { const z = start + 48 * b + s; if (z > 208) break; slots.push({ b, s, z, blk }); } });
+  const enabled = x => (x.blk[4 + x.s] & 1) === 1, txOf = x => [0, 1, 2].map(i => x.blk[116 + 3 * x.s + i].toString(16).padStart(2, '0')).join('').toUpperCase();
+  const used = x => enabled(x) || txOf(x) !== '000000';
+  const rows = slots.filter(x => WF.all || inGroup(x.z) || used(x));
+  const flagBits = (x, shift, mask, v) => x.blk[4 + x.s] = (x.blk[4 + x.s] & ~(mask << shift)) | (v << shift);
+  const bitCb = (x, n) => chk(((x.blk[4 + x.s] >> n) & 1) === 1, on => x.blk[4 + x.s] = on ? (x.blk[4 + x.s] | (1 << n)) : (x.blk[4 + x.s] & ~(1 << n)));
+  const SUPV = ['0 = Not supervised', '1 = Normal supervision', '2 (not used)', '3 = Fire supervision'];
+  const sp = (cur, on, min, max) => { const i = el('input', { class: 'n', type: 'number', value: cur, min, max }); i.oninput = () => { const v = +i.value; if (v >= min && v <= max) on(v); }; return i; };
+  const body = rows.map(x => {
+    const zn = MODEL.zones.find(z => z.n === x.z);
+    const tx = el('input', { class: 't', size: 8, maxlength: 6, value: txOf(x), title: 'Transmitter ID, 6 hex digits (ElkRP shows a leading 0 as well)' });
+    tx.oninput = () => { if (/^[0-9a-fA-F]{6}$/.test(tx.value)) [0, 1, 2].forEach(i => x.blk[116 + 3 * x.s + i] = parseInt(tx.value.slice(2 * i, 2 * i + 2), 16)); };
+    return el('tr', {}, el('td', {}, x.z), el('td', {}, zn ? zn.name : el('span', { class: 'hint', style: 'margin:0' }, 'no zone')),
+      el('td', { class: 'c' }, bitCb(x, 0)),
+      el('td', {}, sel(SUPV, (x.blk[4 + x.s] >> 1) & 3, v => flagBits(x, 1, 3, v), false)),
+      el('td', { class: 'c' }, bitCb(x, 3)), el('td', { class: 'c' }, bitCb(x, 4)), el('td', { class: 'c' }, bitCb(x, 5)),
+      el('td', {}, sp((x.blk[4 + x.s] >> 6) & 3, v => flagBits(x, 6, 3, v), 0, 3)),
+      el('td', {}, sp(x.blk[52 + x.s], v => x.blk[52 + x.s] = v, 0, 255)), el('td', {}, tx));
+  });
+  const nW = rows.filter(enabled).length;
+  const head = el('tr', {}, ['Zone', 'Name', 'Enabled', 'Supervision', 'Option 1', 'Option 2', 'PIR', 'HW loop', 'Key fob user', 'Tx ID'].map(t => el('th', {}, t)));
+  const showAll = el('label', { class: 'cb' }, chk(WF.all, on => { WF.all = on; render(); }), 'Show every wireless slot (zones ' + start + '-' + Math.min(208, start + 48 * W.length - 1) + '), not only the wireless groups');
+  const sup = (b, label) => el('label', {}, label, sp(W[0][b], v => W[0][b] = v, 0, 255));
+  const outside = slots.filter(x => enabled(x) && !inGroup(x.z)).map(x => x.z);
+  p.append(el('div', { class: 'hint' }, `One row per wireless zone. The zone’s name and definition are on the Zones tab; which groups of 16 zones are wireless is on the Wireless zone groups tab. Wireless slots start at zone ${start}. ${nW} enabled.`),
+    el('div', { class: 'bar' }, sup(0, 'Non-fire supervision window'), sup(1, 'Fire supervision window'), el('span', { style: 'flex:1' }), showAll),
+    outside.length ? el('div', { class: 'err', style: 'display:block;margin:8px 0' }, 'Enabled devices on zones that are not in a wireless group: ' + outside.join(', ') + '. Turn those groups on in the Wireless zone groups tab.') : null,
+    rows.length ? tbl(head, body) : el('div', { class: 'hint' }, 'No wireless groups are on, so there are no wireless devices to show. Turn groups on in the Wireless zone groups tab, or tick “Show every wireless slot”.'));
+}
+
+// ---- STATUS (live): one panel connection kept open and polled; compare / send / read / backup borrow the same connection ---------------
+const LIVE = { gen: 0, on: false, host: '', firmware: '', serial: '', snap: null, err: '', at: '', timer: null, busy: false, allZones: false, force: false, sub: 'status' };
+async function livePoll() {
+  if (LIVE.busy) return; LIVE.busy = true; const gen = LIVE.gen, was = LIVE.on;
+  try {
+    const r = await fetch('/api/live/status'); const d = await r.json();
+    if (gen !== LIVE.gen) { LIVE.busy = false; return; }         // disconnected (or reconnected) while this poll was running
+    LIVE.on = d.connected; LIVE.host = d.host || LIVE.host; LIVE.firmware = d.firmware || ''; LIVE.serial = d.serial || ''; LIVE.snap = d.snapshot; LIVE.err = d.error || ''; LIVE.at = d.at || '';
+  } catch (e) { LIVE.err = String(e.message || e); }
+  LIVE.busy = false; liveTimer(); if (was !== LIVE.on) render(); else paintLive();      // render: the Disconnect button must become the Connect form
+}
+function liveTimer() { clearTimeout(LIVE.timer); if (LIVE.on) LIVE.timer = setTimeout(livePoll, 2000); }
+async function liveConnect(host, code, mac, pass, serial, out) {
+  out.textContent = 'Connecting…';
+  try {
+    const r = await fetch('/api/live/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ host, port: PANEL.port, code, plain: PANEL.plain, tls: PANEL.tls, serial: serial || null, mac: mac || null, passphrase: pass || '' }) });
+    if (!r.ok) { out.textContent = await r.text(); return; }
+    const d = await r.json(); LIVE.on = d.connected; LIVE.host = d.host || host; LIVE.firmware = d.firmware || ''; LIVE.serial = d.serial || ''; LIVE.snap = d.snapshot; LIVE.err = ''; LIVE.at = d.at || '';
+    PANEL.host = host; PANEL.code = code; PANEL.serial = serial || PANEL.serial; try { localStorage.setItem('elkpanel', JSON.stringify(PANEL)); } catch (e) { }
+    out.textContent = ''; liveTimer(); render();
+  } catch (e) { out.textContent = String(e.message || e); }
+}
+async function liveControl(body) {
+  const was = LIVE.on;
+  try {
+    const r = await fetch('/api/live/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!r.ok) { showErr(await r.text()); return; }
+    const d = await r.json(); LIVE.on = d.connected; LIVE.snap = d.snapshot; LIVE.err = d.error || ''; LIVE.at = d.at || ''; showErr(''); if (was !== LIVE.on) render(); else paintLive();
+  } catch (e) { showErr(String(e.message || e)); }
+}
+async function liveDisconnect() { LIVE.gen++; LIVE.busy = false; clearTimeout(LIVE.timer); try { await fetch('/api/live/disconnect', { method: 'POST' }); } catch (e) { } LIVE.on = false; LIVE.snap = null; LIVE.err = ''; render(); }
+function paintLive() {
+  const box = document.getElementById('livebox'); if (!box || TAB !== 'live' || LIVE.sub !== 'status') return;
+  const sn = LIVE.snap; const kids = [];
+  kids.push(el('div', { class: 'hint', title: LIVE.on ? '' : (LIVE.err || ''), style: 'display:block;margin:6px 0;' + (LIVE.on ? 'color:var(--good);font-weight:600' : LIVE.err ? 'color:var(--bad);font-weight:600' : '') },
+    LIVE.on ? `Connected to ${LIVE.host}${LIVE.firmware ? ' (firmware ' + LIVE.firmware + (LIVE.serial ? ', serial ' + LIVE.serial : '') + ')' : ''}. Updated ${LIVE.at}. Compare, send, read and backup in Panel… use this connection.` : (LIVE.err ? 'Disconnected.' : 'Not connected.')));
+  if (sn) {
+    const areaDefs = MODEL && MODEL.areas.length ? MODEL.areas : sn.areas.map(a => ({ n: a.area, name: '' }));
+    kids.push(el('h3', { style: 'margin:12px 0 4px' }, 'Areas'));
+    kids.push(el('label', { class: 'cb', style: 'margin:0 0 6px' }, el('input', { type: 'checkbox', checked: LIVE.force, onchange: e => { LIVE.force = e.target.checked; paintLive(); } }),
+      el('span', {}, 'Force arm: arm even when zones are open or violated. The panel bypasses them. Without this, Arm refuses and lists the open zones. The tick clears after one arm.')));
+    kids.push(el('div', { class: 'cards' }, areaDefs.map(def => {
+      const a = sn.areas.find(x => x.area === def.n); if (!a) return null;
+      const col = a.alarm ? 'var(--bad)' : a.armed ? 'var(--info)' : a.ready ? 'var(--good)' : 'var(--warn)';
+      return el('div', { class: 'card', style: 'border-left:6px solid ' + col },
+        el('h3', {}, 'Area ' + def.n + (def.name ? ' – ' + def.name : '')),
+        el('div', { style: 'font-size:18px;font-weight:600;color:' + col }, a.alarm ? 'ALARM' : a.armed ? a.armedName : 'Disarmed'),
+        el('div', {}, a.ready ? (a.readyToForceArm ? 'Ready (violated zones can be force armed)' : 'Ready to arm') : 'Not ready (a zone is open or violated)'),
+        el('div', { class: 'row', style: 'margin-top:8px;gap:4px;flex-wrap:wrap' }, ['Disarm', 'Arm Away', 'Arm Stay', 'Arm Stay Instant', 'Arm Night', 'Arm Night Instant', 'Arm Vacation'].map((t, lv) =>
+          el('button', { class: lv && LIVE.force ? 'danger' : '', title: lv && LIVE.force ? 'Force arm: arms even if zones are open and the panel bypasses them' : '', onclick: () => { const force = !!(lv && LIVE.force); if (force) LIVE.force = false; liveControl({ kind: 'arm', area: def.n, level: lv, force }); } }, lv && LIVE.force ? 'Force ' + t : t)), a.alarm ? armBtn('Silence / reset', () => 'Silence and reset area ' + def.n, () => liveControl({ kind: 'silence', area: def.n })) : null));
+    })));
+    kids.push(el('h3', { style: 'margin:12px 0 4px' }, 'System alarms and troubles'));
+    kids.push(sn.system.length ? el('ul', { style: 'margin:4px 0 4px 18px;color:var(--bad)' }, sn.system.map(t => el('li', {}, t))) : el('div', { class: 'hint' }, 'None.'));
+    const zdef = new Map((MODEL ? MODEL.zones : []).map(z => [z.n, z]));
+    const abnormal = z => z.state !== 'Normal' || z.bypassed || z.forceArmed;
+    const rows = sn.zones.filter(z => LIVE.allZones || (zdef.has(z.zone) && zdef.get(z.zone).definition !== 0) || (!MODEL && abnormal(z)));
+    const showAll = el('label', { class: 'cb' }, chk(LIVE.allZones, on => { LIVE.allZones = on; paintLive(); }), 'Show every zone (not only defined zones)');
+    kids.push(el('div', { class: 'bar plain', style: 'margin-top:12px' }, el('b', {}, 'Zones'), el('span', { class: 'hint', style: 'margin:0 0 0 8px' }, `${rows.length} shown, ${sn.zones.filter(z => z.state === 'Violated' && zdef.has(z.zone) && zdef.get(z.zone).definition !== 0).length} violated`), el('span', { style: 'flex:1' }), showAll));
+    const head = el('tr', {}, ['Zone', 'Name', 'Area', 'State', 'Bypass', 'Force armed', 'Input', 'Volts'].map(t => el('th', {}, t)));
+    const body = rows.map(z => {
+      const d = zdef.get(z.zone), col = z.state === 'Violated' ? 'var(--bad)' : z.state === 'Trouble' ? 'var(--warn)' : 'var(--good)';
+      return el('tr', {}, el('td', {}, z.zone), el('td', {}, d ? d.name : ''), el('td', {}, d ? d.area : ''), el('td', { style: 'font-weight:600;color:' + col }, z.state),
+        el('td', {}, el('button', { onclick: () => liveControl({ kind: 'bypass', area: d ? d.area : 1, zone: z.zone }) }, z.bypassed ? 'Bypassed – remove' : 'Bypass')), el('td', {}, z.forceArmed ? 'Force armed' : ''), el('td', {}, z.physical), el('td', {}, z.volts.toFixed(1)));
+    });
+    kids.push(rows.length ? tbl(head, body) : el('div', { class: 'hint' }, 'No defined zones to show. Open an account file so the zone names appear, or tick “Show every zone”.'));
+  }
+  box.replaceChildren(...kids);
+}
+function liveTab(p) {
+  const host = el('input', { type: 'text', size: 18, value: PANEL.host || LIVE.host, placeholder: '192.168.x.x' });
+  const code = el('input', { type: 'password', size: 10, autocomplete: 'off', value: PANEL.code || '246801' });
+  const mac = el('input', { type: 'text', size: 18, value: PANEL.mac, placeholder: '00:40:9D:xx:xx:xx' }), pass = el('input', { type: 'password', size: 14, autocomplete: 'off' });
+  const serialIn = el('input', { type: 'text', size: 10, maxlength: 8, value: PANEL.serial || '', placeholder: '00000001' });
+  const out = el('div', { class: 'hint', style: 'color:var(--bad)' });
+  const go = el('button', { class: 'primary', onclick: () => { if (!host.value.trim() || !code.value) { out.textContent = 'Enter the panel address (and the RP access code under Advanced).'; return; } liveConnect(host.value.trim(), code.value, mac.value.trim(), pass.value, serialIn.value.trim().toUpperCase(), out); } }, 'Connect and watch');
+  const stop = el('button', { onclick: liveDisconnect }, 'Disconnect');
+  p.append(el('div', { class: 'hint' }, 'Everything that talks to the panel while it is running: live status, the event log, bus modules, the clock and the RP access code. One connection stays open (status is refreshed every 2 seconds); the other Panel… actions (compare, send, read, backup) use it too, so you do not need to disconnect first. Connection type and port come from the Panel… dialog (' + (PANEL.plain ? 'non-secure port ' : PANEL.tls ? 'secure TLS port ' : 'secure AES port ') + PANEL.port + '). Only one program can be connected to the panel at a time, so close ElkRP first.'),
+    LIVE.on ? el('div', { class: 'bar' }, stop) : el('div', { class: 'bar' }, el('label', {}, 'Panel (M1XEP) address', host), PANEL.plain ? null : PANEL.tls ? el('label', {}, 'Panel serial number', serialIn) : [el('label', {}, 'M1XEP MAC address', mac), el('label', {}, 'Passphrase', pass)], el('details', {}, el('summary', {}, 'Advanced'), el('label', {}, 'RP access code (factory default 246801)', code)), go),
+    out);
+  if (!LIVE.on) { p.append(el('div', { class: 'hint', title: LIVE.err || '', style: 'display:block;margin:6px 0;' + (LIVE.err ? 'color:var(--bad);font-weight:600' : '') }, LIVE.err ? 'Disconnected.' : 'Not connected.')); return; }
+  const nav2 = el('div', { class: 'bar plain', style: 'gap:6px' }, LIVE_VIEWS.map(([k, label]) => el('button', { class: k === LIVE.sub ? 'primary' : '', onclick: () => { LIVE.sub = k; render(); } }, label)));
+  const body = el('div'); p.append(nav2, body);
+  ({ status: statusView, log: logView, modules: modulesTab, time: timeView, code: codeView })[LIVE.sub](body);
+  if (!LIVE.busy) { clearTimeout(LIVE.timer); LIVE.timer = setTimeout(livePoll, 300); }       // keeps running on every view, so a lost connection is noticed
+}
+const LIVE_VIEWS = [['status', 'Status'], ['log', 'Event log'], ['modules', 'Modules'], ['time', 'Time and date'], ['code', 'RP access code']];
+function statusView(p) { p.append(el('div', { id: 'livebox' })); paintLive(); }
+
+// ---- LIVE / event log (ElkRP: Receive Log) ---------------------------------------------------------------------------
+const LOGV = { rows: null, note: '', busy: false };
+async function logLoad(max) {
+  LOGV.busy = true; LOGV.note = 'Reading the log…'; if (TAB === 'live' && LIVE.sub === 'log') render();
+  try {
+    const r = await fetch('/api/live/log?max=' + max, { method: 'POST' });
+    if (!r.ok) LOGV.note = await r.text(); else { const d = await r.json(); LOGV.rows = d.entries; LOGV.note = d.entries.length + ' entr' + (d.entries.length === 1 ? 'y' : 'ies') + ' read at ' + d.at + ', newest first.'; }
+  } catch (e) { LOGV.note = String(e.message || e); }
+  LOGV.busy = false; if (TAB === 'live' && LIVE.sub === 'log') render();
+}
+function logEventText(ev) { return ev >= 1 && ev < META.zoneDefinitions.length ? META.zoneDefinitions[ev] + ' (zone alarm)' : 'Event ' + ev; }
+function logView(p) {
+  const b20 = el('button', { disabled: LOGV.busy, onclick: () => logLoad(20) }, 'Read newest 20'), bAll = el('button', { disabled: LOGV.busy, onclick: () => logLoad(512) }, 'Read all (up to 512)');
+  p.append(el('div', { class: 'hint' }, 'The panel’s event log, newest first. Reading it changes nothing. Dates and times are the panel’s own; the area and the item (a zone, user, keypad or module number, depending on the event) are shown as the panel stores them. Events 1 to 36 are zone alarms and are named by the zone’s definition; ElkRP names the other events from a table in its own database, which this editor does not have yet, so they show as “Event” with the panel’s number.'),
+    el('div', { class: 'bar' }, b20, bAll), LOGV.note ? el('div', { class: 'hint', style: 'color:var(--info)' }, LOGV.note) : null);
+  if (!LOGV.rows) return;
+  const zn = new Map((MODEL ? MODEL.zones : []).map(z => [z.n, z.name]));
+  p.append(tbl(el('tr', {}, ['#', 'Date and time', 'Area', 'Event', 'Item'].map(h => el('th', {}, h))), LOGV.rows.map(r => el('tr', {},
+    el('td', {}, r.n), el('td', {}, r.time || '(invalid date)'), el('td', {}, r.area), el('td', {}, logEventText(r.ev)),
+    el('td', { title: 'item number as stored by the panel' }, r.ev >= 1 && r.ev < META.zoneDefinitions.length ? 'Zone ' + r.item + (zn.get(r.item) ? ' – ' + zn.get(r.item) : '') : r.item)))));
+}
+
+// ---- LIVE / time and date (ElkRP: Set Time and Date) -----------------------------------------------------------------
+const TIMEV = { panel: '', computer: '', note: '', busy: false, loaded: false };
+async function timeLoad() {
+  TIMEV.busy = true;
+  try { const r = await fetch('/api/live/time', { method: 'POST' }); if (!r.ok) TIMEV.note = await r.text(); else { const d = await r.json(); TIMEV.panel = d.panel || ''; TIMEV.computer = d.computer; TIMEV.note = d.panel ? '' : 'The panel’s clock is not set to a valid date.'; } }
+  catch (e) { TIMEV.note = String(e.message || e); }
+  TIMEV.busy = false; TIMEV.loaded = true; if (TAB === 'live' && LIVE.sub === 'time') render();
+}
+async function timeSet(body) {
+  try {
+    const r = await fetch('/api/live/settime', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!r.ok) { showErr(await r.text()); return; }
+    const d = await r.json(); TIMEV.panel = d.panel || ''; TIMEV.computer = d.computer; showErr('');
+    TIMEV.note = d.acknowledged ? 'Clock set to ' + d.sent + '; the panel now reads ' + (d.panel || '(invalid)') + '.' : 'The panel did not acknowledge the new time; it now reads ' + (d.panel || '(invalid)') + '.';
+    render();
+  } catch (e) { showErr(String(e.message || e)); }
+}
+function timeView(p) {
+  if (!TIMEV.loaded && !TIMEV.busy) timeLoad();
+  const pad = n => String(n).padStart(2, '0'), now = new Date();
+  const local = el('input', { type: 'datetime-local', step: 1, value: now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds()) });
+  const diff = TIMEV.panel && TIMEV.computer ? Math.round((new Date(TIMEV.panel.replace(' ', 'T')) - new Date(TIMEV.computer.replace(' ', 'T'))) / 1000) : null;
+  p.append(el('div', { class: 'hint' }, 'The panel’s own clock. It drives schedules, the event log and dawn and dusk. “Set to this computer’s time” does what Set Time and Date does in ElkRP.'),
+    el('div', { class: 'cards' }, el('div', { class: 'card' }, el('h3', {}, 'Panel'), el('div', { style: 'font-size:18px;font-weight:600' }, TIMEV.panel || (TIMEV.busy ? 'Reading…' : '–'))),
+      el('div', { class: 'card' }, el('h3', {}, 'This computer (when read)'), el('div', { style: 'font-size:18px;font-weight:600' }, TIMEV.computer || '–')),
+      el('div', { class: 'card' }, el('h3', {}, 'Difference'), el('div', { style: 'font-size:18px;font-weight:600' }, diff == null ? '–' : Math.abs(diff) < 3 ? 'in step' : Math.abs(diff) + ' s ' + (diff > 0 ? 'ahead' : 'behind')))),
+    el('div', { class: 'bar' }, el('button', { disabled: TIMEV.busy, onclick: () => { TIMEV.loaded = false; timeLoad(); } }, 'Read again'), el('span', { style: 'flex:1' }),
+      armBtn('Set to this computer’s time', () => 'Set the panel clock to this computer’s time', () => timeSet({ useComputerTime: true }))),
+    el('div', { class: 'bar' }, el('label', {}, 'Or a time you choose', local), armBtn('Set to the time shown', () => 'Set the panel clock to ' + local.value.replace('T', ' '), () => { if (!local.value) throw new Error('Pick a date and time first.'); timeSet({ useComputerTime: false, time: local.value.replace('T', ' ') }); })),
+    TIMEV.note ? el('div', { class: 'hint', style: 'color:var(--info)' }, TIMEV.note) : null);
+}
+
+// ---- LIVE / RP access code (ElkRP: the Change button in the account details) -----------------------------------------
+const CODEV = { note: '', ok: false };
+function codeView(p) {
+  const a = el('input', { type: 'password', size: 8, maxlength: 6, autocomplete: 'new-password', inputmode: 'numeric' }), b = el('input', { type: 'password', size: 8, maxlength: 6, autocomplete: 'new-password', inputmode: 'numeric' });
+  const change = armBtn('Change RP access code', () => { if (!/^\d{6}$/.test(a.value)) throw new Error('The RP access code is exactly six digits.'); if (a.value !== b.value) throw new Error('The two entries do not match.'); return 'Change the panel’s RP access code to the new one'; }, async () => {
+    try {
+      const r = await fetch('/api/live/accesscode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ newCode: a.value }) });
+      if (!r.ok) { CODEV.ok = false; CODEV.note = await r.text(); render(); return; }
+      PANEL.code = a.value; try { localStorage.setItem('elkpanel', JSON.stringify(PANEL)); } catch (e) { }
+      CODEV.ok = true; CODEV.note = 'The panel acknowledged the change. This editor now uses the new code; ElkRP needs the same new code in the account’s details to connect.'; render();
+    } catch (e) { CODEV.ok = false; CODEV.note = String(e.message || e); render(); }
+  });
+  p.append(el('div', { class: 'hint' }, 'The RP access code is the six-digit code ElkRP and this editor log in with (the factory default is 246801). It can only be changed while connected to the panel. It is not the keypad’s installer programming code and not a user code. Write the new code down: ElkRP and this editor both need it to connect, and the panel is only changed once it acknowledges.'),
+    el('div', { class: 'bar' }, el('label', {}, 'New code (6 digits)', a), el('label', {}, 'Repeat the new code', b), change),
+    CODEV.note ? el('div', { class: CODEV.ok ? 'ok' : 'err', style: 'display:block;margin:8px 0' }, CODEV.note) : null);
+}
+fetch('/api/live/status').then(r => r.json()).then(d => { if (d.connected) { LIVE.on = true; LIVE.host = d.host || ''; LIVE.firmware = d.firmware || ''; LIVE.serial = d.serial || ''; LIVE.snap = d.snapshot; LIVE.at = d.at || ''; liveTimer(); } }).catch(() => { });
+
+// ---- MODULES: installed bus devices and bus module enrollment (ElkRP "Enroll/Update Control and Devices") ----------------------------------------
+const MOD = { list: null, note: '', busy: false };
+async function modulesLoad(enroll) {
+  MOD.busy = true; MOD.note = enroll ? 'Enrolling: the panel is scanning its data bus. This takes about 15 seconds…' : 'Reading the devices…'; if (TAB === 'live' && LIVE.sub === 'modules') render();
+  try {
+    const r = await fetch(enroll ? '/api/live/enroll' : '/api/live/modules', { method: 'POST' });
+    if (!r.ok) { MOD.note = await r.text(); MOD.busy = false; if (TAB === 'live' && LIVE.sub === 'modules') render(); return; }
+    const d = await r.json(); MOD.list = d.modules; MOD.note = (d.note ? d.note + '. ' : '') + 'Read at ' + d.at + '.';
+  } catch (e) { MOD.note = String(e.message || e); }
+  MOD.busy = false; if (TAB === 'live' && LIVE.sub === 'modules') render();
+}
+function modulesTab(p) {
+  if (!LIVE.on) { p.append(el('div', { class: 'hint' }, 'Connect to the panel first (the connect form above). The devices on the panel’s data bus (keypads, expanders, the M1XEP) are listed here, and you can run bus module enrollment.')); return; }
+  const enroll = armBtn('Enroll bus modules', () => 'Make the panel rescan its data bus and enroll what it finds', () => modulesLoad(true));
+  const refresh = el('button', { onclick: () => modulesLoad(false) }, 'Refresh');
+  if (MOD.busy) { refresh.disabled = true; }
+  p.append(el('div', { class: 'hint' }, 'The control, the M1XEP and every module enrolled on the data bus, with the hardware, boot and firmware versions each one reports. “Enroll bus modules” does what Bus Module Enrollment (menu 01) does at a keypad: the panel scans the bus and enrolls the modules it finds. A module that is enrolled but not answering at that moment (powered off, unplugged) is dropped, so only do this with every module connected and powered. It does not change zones, users or any other programming.'),
+    el('div', { class: 'bar' }, refresh, el('span', { style: 'flex:1' }), enroll),
+    MOD.note ? el('div', { class: 'hint', style: 'color:var(--info)' }, MOD.note) : null);
+  if (!MOD.list && !MOD.busy) { modulesLoad(false); return; }
+  if (MOD.list) {
+    const head = el('tr', {}, ['Type', 'Address', 'Model', 'Hardware', 'Boot', 'Firmware'].map(t => el('th', {}, t)));
+    p.append(tbl(head, MOD.list.map(m => el('tr', {}, el('td', {}, m.kind), el('td', {}, m.address || ''), el('td', { style: 'font-weight:600' }, m.model), el('td', {}, m.hardware), el('td', {}, m.boot),
+      el('td', { style: m.responding ? '' : 'color:var(--bad);font-weight:600' }, m.firmware)))));
+    p.append(el('div', { class: 'hint' }, 'Address is the keypad number (1-16), the input or output expander number, or the serial port expander number. Zones on expanders follow the data bus address tables in docs/ELK-ZONE-EXPANDER-TABLES.md.'));
+  }
+}
+
+// ---- USERS ----------------------------------------------------------------------------------------------------------
+const UF = { q: '' };
+function usersTab(p) {
+  const comm = !!MODEL.comm, flagCols = META.userFlags, bulk = { flags: {} };
+  const selU = new Set();
+  p.append(el('div', { class: 'hint' }, `Codes are ${MODEL.codeLength} digits (from the Globals “6-digit codes” option in this file). Leave a code blank to keep it unchanged. Each user’s open/close reporting is in the last two columns. User 1 (the master code) and the special slots 201 Installer, 202 ElkRP and 203 No Code (marked 🔒) always exist: you can change their codes and permissions but not delete them.`));
+  const range = el('input', { type: 'text', size: 18, placeholder: 'e.g. 2-5, 10  (blank = ticked rows)' });
+  const bArea = el('select', {}, el('option', { value: '' }, '(leave)'));
+  const bFlags = triFlags(flagCols, bulk.flags);
+  const apply = el('button', { class: 'primary' }, 'Apply to selected');
+  apply.onclick = () => {
+    try {
+      let rows = MODEL.users.filter(u => selU.has(u.n));
+      if (range.value.trim()) { const want = new Set(parseRange(range.value, 255)); rows = MODEL.users.filter(u => want.has(u.n) || selU.has(u.n)); }
+      if (!rows.length) throw new Error('Pick users first: tick rows or type a range.');
+      for (const u of rows) for (const [k, v] of Object.entries(bulk.flags)) if (v) setFlag(u, k, v === 1);
+      showErr(''); showOk(`Changed ${rows.length} user(s).`); render();
+    } catch (e) { showErr(e.message); }
+  };
+  const addN = el('input', { type: 'text', size: 12, placeholder: 'e.g. 5 or 10-20' }), add = el('button', {}, 'Add users');
+  add.onclick = () => { try { for (const n of parseRange(addN.value, 255)) if (!MODEL.users.some(u => u.n === n)) { MODEL.users.push({ n, name: '', code: '0'.repeat(MODEL.codeLength), flags: ['arm', 'disarm', 'area1'] }); userRc(n, true); } MODEL.users.sort((a, b) => a.n - b.n); showErr(''); render(); } catch (e) { showErr(e.message); } };
+  const rnd = el('button', { title: 'Give every user whose code is all zeros a random code that no other user has' }, 'Fill empty codes with unique random codes');
+  rnd.onclick = () => {
+    const used = new Set(MODEL.users.map(u => u.code)); let n = 0;
+    for (const u of MODEL.users) if (/^0+$/.test(u.code)) {
+      let c; do { const a = new Uint32Array(1); crypto.getRandomValues(a); c = String(a[0] % 10 ** MODEL.codeLength).padStart(MODEL.codeLength, '0'); } while (used.has(c) || /^(.)\1+$/.test(c));
+      used.add(c); u.code = c; n++;
+    }
+    showOk(n ? `Gave ${n} user(s) a new random code. Check the Code column before saving.` : 'No users with an all-zero code.'); render();
+  };
+  const fq = el('input', { type: 'search', placeholder: 'name or number', value: UF.q, size: 16 });
+  const tbody = el('tbody'), count = el('span', { class: 'hint' });
+  function fillBody() {
+    const vis = MODEL.users.filter(u => !UF.q || u.name.toLowerCase().includes(UF.q.toLowerCase()) || String(u.n) === UF.q.trim());
+    tbody.replaceChildren(...vis.map(u => el('tr', { title: u.n === 1 || SPECIAL_USERS[u.n] ? (SPECIAL_USERS[u.n] ? SPECIAL_USERS[u.n] + ': a fixed slot, cannot be deleted' : 'User 1 (master code) cannot be deleted') : '' }, el('td', {}, u.n === 1 || SPECIAL_USERS[u.n] ? el('span', { class: 'hint', style: 'margin:0' }, '🔒') : chk(selU.has(u.n), on => on ? selU.add(u.n) : selU.delete(u.n))), el('td', {}, u.n), el('td', {}, SPECIAL_USERS[u.n] ? el('span', { style: 'font-weight:600' }, SPECIAL_USERS[u.n]) : text(u.name, v => u.name = v)),
+      el('td', {}, text(u.code, v => u.code = v, 'code', MODEL.codeLength)), flagCols.map(d => el('td', { class: 'c' }, chk(has(u, d.key), on => setFlag(u, d.key, on)))),
+      comm ? [el('td', { class: 'c grp' }, rcBox(() => (userRc(u.n) || { close: 0 }).close, v => userRc(u.n, true).close = v, true, 'Report this user closing (arming)')),
+        el('td', { class: 'c' }, rcBox(() => (userRc(u.n) || { open: 0 }).open, v => userRc(u.n, true).open = v, false, 'Report this user opening (disarming)'))] : null)));
+    count.textContent = `Showing ${vis.length} of ${MODEL.users.length} users`;
+  }
+  fq.oninput = () => { UF.q = fq.value; fillBody(); };
+  const head = el('tr', {}, el('th', {}, ''), el('th', {}, 'User'), el('th', {}, 'Name'), el('th', {}, 'Code'), flagCols.map(d => el('th', { class: 'rot' }, el('span', {}, d.label))),
+    comm ? [el('th', { class: 'rot grp' }, el('span', {}, 'Report: Close')), el('th', { class: 'rot' }, el('span', {}, 'Report: Open'))] : null);
+  fillBody();
+  const delU = armBtn('Delete ticked users', () => { if (!selU.size) throw new Error('Tick the users to delete first.'); const n = [...selU].filter(x => x !== 1 && x <= 199).length; if (!n) throw new Error(NO_DELETE); return 'Delete ' + n + ' user(s)'; }, () => dropUsers([...selU]));
+  p.append(el('div', { class: 'bar' }, el('label', {}, 'Users to change', range), el('label', { style: 'flex-basis:100%' }, 'Permissions (click: set ✓ → clear ✗ → leave)', bFlags), apply, delU),
+    el('div', { class: 'bar plain' }, el('label', {}, 'Search', fq), count, el('span', { style: 'flex:1' }), rnd),
+    el('div', { class: 'tablewrap' }, el('table', {}, el('thead', {}, head), tbody)),
+    el('div', { class: 'bar', style: 'margin-top:10px' }, el('label', {}, 'Add user numbers', addN), add));
+}
+
+// ---- AREAS (one card per area: timers, options, reporting, what is in it) ---------------------------------------------
+function areasTab(p) {
+  const comm = !!MODEL.comm;
+  const cards = MODEL.areas.map(a => {
+    const kps = MODEL.keypads.filter(k => k.area === a.n), zs = MODEL.zones.filter(z => z.area === a.n && z.definition !== 0);
+    const rc = comm ? areaRc(a.n) : null;
+    const t = (label, v, on) => el('label', {}, label, num(v, on));
+    const card = el('div', { class: 'card' },
+      el('h3', {}, 'Area ' + a.n, text(a.name, v => a.name = v), a.n > 1 && MODEL.areas.length > 1 ? armBtn('Delete area', () => {
+          const nz = MODEL.zones.filter(z => z.area === a.n).length, nk = kps.length;
+          if (nz || nk) throw new Error('Area ' + a.n + ' still has ' + nz + ' zone(s) and ' + nk + ' keypad(s). Move them to another area first (the Area column on Zones and Keypads), then delete it.');
+          return 'Delete area ' + a.n; }, () => { MODEL.areas = MODEL.areas.filter(x => x.n !== a.n); if (MODEL.comm) MODEL.comm.areas = MODEL.comm.areas.filter(x => x.n !== a.n); MODEL.prune = true; showErr(''); render(); }) : null, el('span', { class: 'hint', style: 'margin:0 0 0 auto' }, `${zs.length} zone(s), ${kps.length} keypad(s)${kps.length ? ': ' + kps.map(k => k.name || ('Keypad ' + k.n)).join(', ') : ''}`)),
+      el('h4', {}, 'Delays (seconds)'),
+      el('div', { class: 'row' }, t('Exit 1', a.exit1, v => a.exit1 = v), t('Entry 1', a.entrance1, v => a.entrance1 = v), t('Exit 2', a.exit2, v => a.exit2 = v), t('Entry 2', a.entrance2, v => a.entrance2 = v), t('Arm window', a.armWindow, v => a.armWindow = v)),
+      el('h4', {}, 'Options'),
+      el('div', { class: 'cbgrid' }, META.areaFlags.map(d => el('label', { class: 'cb' }, chk(has(a, d.key), on => setFlag(a, d.key, on)), d.label))));
+    if (comm) {
+      const AREA_RESTORE = new Set([2, 3, 5, 6, 7]);
+      const cur = () => areaRc(a.n, true);
+      card.append(el('h4', {}, 'Report to central station'),
+        el('div', { class: 'row' }, el('label', {}, 'Abort time', num(rc ? rc.abortTime : 0, v => cur().abortTime = v)), el('label', {}, 'Cancel time', num(rc ? rc.cancelTime : 0, v => cur().cancelTime = v))),
+        el('div', { class: 'cbgrid', style: 'margin-top:6px' }, META.areaRcLabels.map((l, i) => el('label', { class: 'cb' }, rcBox(() => (areaRc(a.n) || { codes: Array(17).fill(0) }).codes[i], v => cur().codes[i] = v, AREA_RESTORE.has(i)), l + (AREA_RESTORE.has(i) ? ' (restore)' : '')))),
+        el('div', { style: 'margin-top:6px' },
+          el('button', { onclick: () => { const r = cur(); r.codes = r.codes.map((_, i) => onVal(AREA_RESTORE.has(i))); render(); } }, 'All on'), ' ',
+          el('button', { onclick: () => { cur().codes = Array(17).fill(0); render(); } }, 'All off')));
+    }
+    return card;
+  });
+  const addN = el('input', { type: 'text', size: 12, placeholder: 'e.g. 2-4' }), add = el('button', {}, 'Add areas');
+  add.onclick = () => { try { for (const n of parseRange(addN.value, 8)) if (!MODEL.areas.some(a => a.n === n)) { MODEL.areas.push({ n, name: 'Area ' + n, exit1: 30, entrance1: 30, exit2: 30, entrance2: 30, armWindow: 0, flags: [] }); areaRc(n, true); } MODEL.areas.sort((a, b) => a.n - b.n); showErr(''); render(); } catch (e) { showErr(e.message); } };
+  p.append(el('div', { class: 'hint' }, 'Each area has its delays, options and central-station reporting together on one card.'), el('div', { class: 'cards' }, cards),
+    el('div', { class: 'bar', style: 'margin-top:10px' }, el('label', {}, 'Add area numbers', addN), add));
+}
+
+// ---- KEYPADS --------------------------------------------------------------------------------------------------------
+function keypadsTab(p) {
+  const comm = !!MODEL.comm;
+  const head = el('tr', {}, el('th', {}, 'Keypad'), el('th', {}, 'Name'), el('th', {}, 'Area'), [1, 2, 3, 4, 5, 6].map(i => el('th', {}, 'F' + i + ' name')), el('th', {}, ''),
+    comm ? [1, 2, 3, 4, 5, 6].map(i => el('th', { class: 'rot' + (i === 1 ? ' grp' : '') }, el('span', {}, 'Report: F' + i))) : null), body = [];
+  for (const k of MODEL.keypads) body.push(el('tr', {}, el('td', {}, k.n), el('td', {}, text(k.name, v => k.name = v)),
+    el('td', {}, sel(AREAS8, k.area - 1, v => k.area = v + 1, false)), k.fKeys.map(f => el('td', {}, text(f.name, v => f.name = v))),
+    el('td', {}, k.n > 1 && MODEL.keypads.length > 1 ? armBtn('Delete', () => 'Delete keypad ' + k.n, () => { MODEL.keypads = MODEL.keypads.filter(x => x.n !== k.n); if (MODEL.comm) MODEL.comm.keypads = MODEL.comm.keypads.filter(x => x.n !== k.n); MODEL.prune = true; showErr(''); render(); }) : ''),
+    comm ? [0, 1, 2, 3, 4, 5].map(i => el('td', { class: 'c' + (i === 0 ? ' grp' : '') }, rcBox(() => (keypadRc(k.n) || { codes: Array(6).fill(0) }).codes[i], v => keypadRc(k.n, true).codes[i] = v, false))) : null));
+  const addN = el('input', { type: 'text', size: 12, placeholder: 'e.g. 3-6' }), add = el('button', {}, 'Add keypads (copy of keypad 1)');
+  add.onclick = () => { try { for (const n of parseRange(addN.value, 16)) if (!MODEL.keypads.some(k => k.n === n)) { const c = JSON.parse(JSON.stringify(MODEL.keypads[0])); c.n = n; c.name = 'Keypad ' + n; MODEL.keypads.push(c); keypadRc(n, true); } MODEL.keypads.sort((a, b) => a.n - b.n); showErr(''); render(); } catch (e) { showErr(e.message); } };
+  p.append(el('div', { class: 'hint' }, 'Name, area, the six function-key names and what each key reports. All other keypad settings are kept exactly as they are in the file (a new keypad starts as a copy of keypad 1).'),
+    tbl(head, body), el('div', { class: 'bar', style: 'margin-top:10px' }, el('label', {}, 'Add keypad numbers', addN), add));
+}
+
+// ---- PHONES ---------------------------------------------------------------------------------------------------------
+const PHONE_FORMATS = ['Disabled', 'Contact ID', 'SIA FSK', 'Pulsed 4+2', 'DTMF Pager', 'Voice Message', 'IP', 'Serial Expander'];
+// ElkRP's IP area checkbox is only a shortcut for the account code: ticked = code above zero (009999 when ticked by hand), unticked = 000000.
+const ACCT_OFF = '000000', ACCT_ON = '009999';
+const acctOn = c => Number(c) > 0;
+// ---- GLOBALS (system settings; byte/bit positions are ElkRP's Globals form) ---------------------------------------------
+function globalsTab(p) {
+  const G = MODEL.globals;
+  if (!G) { p.append(el('div', { class: 'hint' }, 'The system settings (globals) were not found in this file.')); return; }
+  const bit = (b, n) => (G[b] >> n) & 1, setBit = (b, n, v) => { G[b] = v ? (G[b] | (1 << n)) : (G[b] & ~(1 << n)); };
+  const cb = (b, n, label) => el('label', { class: 'cb' }, chk(!!bit(b, n), on => setBit(b, n, on)), label);
+  const field = (label, ctl) => el('label', { style: 'flex-basis:100%' }, label, ctl);
+  const spin = (get, set, min, max, step) => { const i = el('input', { class: 'n', type: 'number', value: get(), min, max, step: step || 1 }); i.oninput = () => { const v = +i.value; if (v >= min && v <= max) set(v); }; return i; };
+  const byteSpin = (b, min, max, mul) => spin(() => G[b] * (mul || 1), v => G[b] = Math.round(v / (mul || 1)), min, max, mul || 1);
+  const nib = (b, shift, mask, min, max) => spin(() => (G[b] >> shift) & mask, v => G[b] = (G[b] & ~(mask << shift)) | (v << shift), min, max);
+  const card = (title, ...kids) => el('div', { class: 'card' }, el('h3', {}, title), el('div', { class: 'cbgrid' }, kids));
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const LASTWEEK = [25, 22, 25, 24, 25, 24, 25, 25, 24, 25, 24, 25];       // ElkRP's day number for "last <weekday>", by month
+  function setCodeLength(n) {
+    if (n === MODEL.codeLength) return;
+    for (const u of MODEL.users) if (u.code) u.code = n === 6 ? u.code.padStart(6, '0') : u.code.slice(-4);
+    MODEL.codeLength = n;
+  }
+  function dstCard(title, at) {
+    const mk = () => {
+      const d1 = G[at], d2 = G[at + 1], date = (d1 & 8) !== 0, month = Math.min(12, Math.max(1, d1 >> 4));
+      const dow = (d1 & 7) || 1, week = Math.min(3, Math.max(0, Math.floor(((d2 > 31 || d2 < 1 ? 1 : d2) - 1) / 7)));
+      return { date, month, dow, week, day: (d2 & 31) || 1 };
+    };
+    const st = mk();
+    const write = () => {
+      G[at] = (st.month << 4) | (st.date ? 0xF : st.dow);
+      G[at + 1] = st.date ? st.day : [1, 8, 15, LASTWEEK[st.month - 1]][st.week];
+    };
+    const body = [field('Month', sel(MONTHS, st.month - 1, v => { st.month = v + 1; write(); }, false)),
+      field('How is the day chosen', sel(['A weekday (for example the second Sunday)', 'A fixed date'], st.date ? 1 : 0, v => { st.date = !!v; write(); render(); }, false))];
+    if (st.date) body.push(field('Day of month', spin(() => st.day, v => { st.day = v; write(); }, 1, 31)));
+    else body.push(field('Which one', sel(['First', 'Second', 'Third', 'Last'], st.week, v => { st.week = v; write(); }, false)), field('Weekday', sel(DAYS, st.dow - 1, v => { st.dow = v + 1; write(); }, false)));
+    return card(title, ...body);
+  }
+  function rpCodeInput() {
+    const get = () => [22, 21, 20, 19, 18, 17].map(i => G[i]).join('');
+    const i = el('input', { class: 't', size: 8, maxlength: 6, value: get() });
+    i.oninput = () => { if (/^\d{6}$/.test(i.value)) [...i.value].forEach((c, k) => G[22 - k] = +c); };
+    return i;
+  }
+  const BAUD = ['300', '1200', '2400', '4800', '9600', '14400', '19200', '38400', '115200'];
+  p.append(el('div', { class: 'hint' }, 'System-wide settings, in the same places as ElkRP’s Globals screen. Changing the user code length only flips the setting, as ElkRP does (a 4-digit code read as 6 digits gains two leading zeros), so check for duplicate codes afterwards.'),
+    el('div', { class: 'cards' },
+      card('Clock and display',
+        field('Time display', sel(['24 hour', '12 hour'], bit(0, 7), v => setBit(0, 7, v), false)),
+        field('Date display', sel(['Month/Day', 'Day/Month'], bit(0, 6), v => setBit(0, 6, v), false)),
+        field('Temperature display', sel(['Fahrenheit', 'Celsius'], bit(0, 5), v => setBit(0, 5, v), false)),
+        cb(0, 4, 'Observe daylight savings time')),
+      card('Codes and keypads',
+        field('User code length', sel(['4 digits', '6 digits'], bit(0, 2), v => { setCodeLength(v ? 6 : 4); setBit(0, 2, v); render(); }, false)),
+        field('Wrong code lock-out (keystrokes, 99 = disabled)', byteSpin(16, 13, 99)),
+        cb(30, 7, 'Menus 1-5 require code'), cb(0, 3, 'Audible system troubles')),
+      card('Zones',
+        field('Fast loop response (ms)', byteSpin(2, 20, 2550, 10)),
+        field('Slow loop response (ms)', byteSpin(3, 20, 2550, 10)),
+        cb(0, 0, 'Cross zone self verify'),
+        field('Cross zone verify time (seconds)', byteSpin(1, 5, 255)),
+        cb(14, 0, 'UL wireless jam detect')),
+      card('Area 1 is common to…', ...[2, 3, 4, 5, 6, 7, 8].map(a => cb(5, a - 1, 'Area ' + a))),
+      card('Output 1 volume (0-7)',
+        field('Initial alarm volume step', nib(6, 3, 7, 0, 7)),
+        field('Max volume, siren alarm', nib(6, 0, 7, 0, 7)),
+        field('Max volume, voice alarm', nib(7, 5, 7, 0, 7)),
+        field('Max volume, non-alarm voice', nib(7, 2, 7, 0, 7)),
+        cb(6, 6, 'Outputs 1 and 2: yelp siren becomes industrial buzzer')),
+      card('Output 2',
+        field('Hookup', sel(['Siren output', 'Voltage out'], bit(9, 7), v => setBit(9, 7, v), false)),
+        field('Delay before turning on (seconds)', byteSpin(8, 0, 255)),
+        cb(7, 1, 'Single alarm lock out')),
+      card('Voice messages',
+        cb(9, 0, 'Chime messages'), cb(9, 1, 'Zone trouble messages'), cb(9, 2, 'System trouble messages'), cb(9, 3, 'Zone status messages'),
+        cb(9, 4, 'Alarm messages'), cb(9, 5, 'System messages'), cb(9, 6, 'Disable all voice messages')),
+      card('Telephone',
+        field('Rings until auto-answer', nib(4, 4, 15, 0, 15)),
+        field('Telephone line-fault timer (minutes)', nib(29, 0, 31, 1, 31)),
+        field('Two-way speaker volume (0-7)', nib(4, 0, 7, 0, 7)),
+        field('Telephone control', sel(['Disabled', 'Local telephone control', 'Local and remote telephone control'], Math.min(2, (G[29] >> 6) & 3), v => G[29] = (G[29] & 0x3F) | (v << 6), true)),
+        cb(29, 5, 'Ring / hang-up / answer'), cb(35, 4, 'Two-way listen-in enable'),
+        field('Two-way callback time (seconds)', byteSpin(10, 0, 255)),
+        field('CS verify call time (seconds)', byteSpin(15, 0, 255))),
+      card('Serial port 0',
+        field('Baud rate', sel(BAUD, Math.min(8, Math.max(0, (G[35] & 15) - 1)), v => G[35] = (G[35] & 0xF0) | (v + 1), false)),
+        el('div', { style: 'flex-basis:100%', class: 'hint' }, 'Send these as text:'),
+        cb(30, 0, 'Event log'), cb(30, 1, 'Zone changes'), cb(30, 2, 'Output changes'), cb(30, 3, 'Task changes'), cb(30, 4, 'Lighting changes'), cb(35, 5, 'Keypad keys')),
+      card('UPB', field('UPB lighting network address', byteSpin(28, 0, 255))),
+      dstCard('Daylight saving starts', 31), dstCard('Daylight saving ends', 33),
+      card('Local programming code (keypad)', field('Code (6 digits)', rpCodeInput()),
+        el('div', { class: 'hint', style: 'flex-basis:100%;margin:0' }, 'The code used to program the alarm from its keypads (the factory default is 172839). It is not the RP access code that ElkRP and this editor use to connect to the panel. It is only sent to the panel if you tick the box in the Panel dialog.')),
+      card('Country and telephone modem (advanced)',
+        field('Country number', byteSpin(47, 0, 255)),
+        el('div', { class: 'hint', style: 'flex-basis:100%;margin:0' }, 'ElkRP fills the modem values from its own country table, which this editor does not have. If you change the country, also set the modem values to match, or leave both as they are.'),
+        ...Array.from({ length: 11 }, (_, i) => field('Modem value ' + (i + 1), byteSpin(36 + i, 0, 255))))));
+}
+
+function phonesTab(p) {
+  if (!MODEL.hasPhones) { p.append(el('div', { class: 'hint' }, 'The telephone section was not found in this file.')); return; }
+  const addBtn = el('button', { onclick: () => { const used = new Set(MODEL.phones.map(t => t.n)); let n = 1; while (used.has(n)) n++; if (n > 8) return; MODEL.phones.push({ n, name: '', number: '', format: 0, attempts: 3, accountCodes: Array(8).fill('000000'), flags: [] }); MODEL.phones.sort((a, b) => a.n - b.n); render(); } }, 'Add telephone number'); if (MODEL.phones.length >= 8) addBtn.disabled = true;
+  if (!MODEL.phones.length) { p.append(el('div', { class: 'hint' }, 'This account has no telephone numbers. Add one to set up central-station reporting.'), addBtn); return; }
+  const anyIp = MODEL.phones.some(t => t.format === 6), anyAcct = MODEL.phones.some(t => t.format !== 6);
+  const head = el('tr', {}, el('th', {}, ''), el('th', {}, '#'), el('th', {}, 'Name'), el('th', {}, 'Number'), el('th', {}, 'Reporting format'), el('th', {}, 'Attempts'),
+    (anyIp ? [1, 2, 3, 4, 5, 6, 7, 8] : []).map(i => el('th', { title: 'IP format only: area ' + i + ' reports to this number' }, 'IP area ' + i)),
+    (anyAcct ? [1, 2, 3, 4, 5, 6, 7, 8] : []).map(i => el('th', { title: 'All formats except IP: the account number reported for area ' + i + ' (000000 = area ' + i + ' does not report to this number)' }, 'Area ' + i)), META.phoneFlags.map(d => el('th', { class: 'rot' }, el('span', {}, d.label))));
+  const body = MODEL.phones.map(t => el('tr', {}, el('td', {}, armBtn('Delete', () => 'Delete telephone ' + t.n, () => { MODEL.phones = MODEL.phones.filter(x => x.n !== t.n); MODEL.prune = true; showErr(''); render(); })), el('td', {}, t.n), el('td', {}, text(t.name, v => t.name = v)), el('td', {}, text(t.number, v => t.number = v, 'name', 20)),
+    el('td', {}, sel(PHONE_FORMATS, t.format, v => { t.format = v; if (v === 6 && t.attempts > 1) t.attempts = 1; render(); })),
+    el('td', {}, num(t.attempts, v => t.attempts = t.format === 6 ? Math.min(v, 1) : v)),
+    (anyIp ? [0, 1, 2, 3, 4, 5, 6, 7] : []).map(i => el('td', { class: 'c' }, t.format === 6 ? chk(acctOn(t.accountCodes[i]), on => { if (on !== acctOn(t.accountCodes[i])) t.accountCodes[i] = on ? ACCT_ON : ACCT_OFF; }) : '')),
+    (anyAcct ? t.accountCodes : []).map((c, i) => el('td', {}, t.format === 6 ? '' : text(c, v => t.accountCodes[i] = v, 'code', 6))), META.phoneFlags.map(d => el('td', { class: 'c' }, chk(has(t, d.key), on => setFlag(t, d.key, on))))));
+  p.append(el('div', { class: 'hint' }, 'Reporting format 06 = IP: tick the areas that report to this number. ElkRP stores the tick in the account number for that area (above zero = ticked; ticking by hand writes 009999, unticking 000000), and changing the format does not alter the numbers. Every other format: type the account number for each area (000000 = that area does not report). IP format allows 1 attempt at most.'),
+    tbl(head, body), addBtn);
+}
+
+// ---- COMMUNICATOR (all report codes of one kind in one place, for bulk work) -------------------------------------------
+let COMMTAB = 'areas';
+const AREA_RESTORE = new Set([2, 3, 5, 6, 7]);                    // Auto close, Early close, Fail to close, Late close, Key switch close (Closing extended is 01)
+const SYS_RESTORE = new Set([1, 4, 6, 11, 15, 17, 8]);            // AC restore, Aux o/c restore, Exp. module restore, Low battery restore, Phone line restore, Output 2 restore, Installer off premises
+function rcChk(c) {
+  const v = c.get(), i = el('input', { type: 'checkbox', checked: v !== 0, title: v === 0 ? 'off (00)' : String(v).padStart(2, '0') + (v === onVal(c.restore) ? '' : ' (not the standard ' + String(onVal(c.restore)).padStart(2, '0') + ')') });
+  i.onchange = () => { c.set(i.checked ? onVal(c.restore) : 0); render(); };
+  return i;
+}
+function commTab(p) {
+  const C = MODEL.comm;
+  if (!C) { p.append(el('div', { class: 'hint' }, 'No communicator (report code) section was found in this file.')); return; }
+  const subs = { system: 'System events', areas: 'Area RCs', users: 'User RCs', zones: 'Zone RCs', keypads: 'Keypad panic RCs' };
+  p.append(el('div', { class: 'hint' }, 'Zone, user, area and keypad reporting can be edited right on the Zones, Users, Areas and Keypads screens. This screen is for system events and for turning one kind of report on or off for everything at once.'));
+  p.append(el('div', { class: 'bar' }, Object.entries(subs).map(([k, t]) => el('button', { class: k === COMMTAB ? 'primary' : '', onclick: () => { COMMTAB = k; render(); } }, t))));
+  p.append(el('div', { class: 'hint' }, 'Tick = the event is reported. New events and opens are sent as 01; restorals and closings as 03 (marked "restore" in the heading). A value already in the file that is not 00/01/03 stays as it is until you change that box.'));
+  const fillBar = cells => {
+    const run = fn => { cells().forEach(fn); render(); };
+    return el('div', { class: 'bar' },
+      el('button', { onclick: () => run(c => c.set(onVal(c.restore))) }, 'Turn all on'),
+      el('button', { onclick: () => run(c => c.set(0)) }, 'Turn all off'),
+      el('button', { onclick: () => run(c => { if (c.get() !== 0) c.set(onVal(c.restore)); }) }, 'Set the ones that are on to the standard 01 / 03'));
+  };
+  const table = (head, rows) => el('div', { class: 'tablewrap' }, el('table', {}, el('thead', {}, el('tr', {}, head.map(h => el('th', {}, h)))), el('tbody', {}, rows)));
+  const cellsOf = rows => () => rows.flatMap(r => r.codes);
+  const rowEl = (r, pre) => el('tr', {}, (pre || []), r.codes.map(c => el('td', { class: 'c' }, rcChk(c))));
+  const arr = (a, i, restore) => ({ get: () => a[i], set: v => a[i] = v, restore });
+  const lab = (l, restore) => restore ? l + ' (restore)' : l;
+  if (COMMTAB === 'areas') {
+    const rows = C.areas.map(a => ({ a, codes: a.codes.map((_, i) => arr(a.codes, i, AREA_RESTORE.has(i))) }));
+    p.append(fillBar(cellsOf(rows)),
+      table(['Area', 'Abort time', 'Cancel time', ...META.areaRcLabels.map((l, i) => lab(l, AREA_RESTORE.has(i)))], rows.map(r => rowEl(r, [el('td', {}, r.a.n), el('td', {}, num(r.a.abortTime, v => r.a.abortTime = v)), el('td', {}, num(r.a.cancelTime, v => r.a.cancelTime = v))]))));
+  } else if (COMMTAB === 'users') {
+    const rows = C.users.map(u => ({ u, codes: [{ get: () => u.close, set: v => u.close = v, restore: true }, { get: () => u.open, set: v => u.open = v, restore: false }] }));
+    const add = el('button', { onclick: () => { for (const u of MODEL.users) userRc(u.n, true); render(); } }, 'Add rows for users that have none (off)');
+    p.append(fillBar(cellsOf(rows)), el('div', { class: 'bar' }, add),
+      table(['User', 'Name', 'Close (restore)', 'Open'], rows.map(r => rowEl(r, [el('td', {}, r.u.n), el('td', {}, (MODEL.users.find(x => x.n === r.u.n) || {}).name || '')]))));
+  } else if (COMMTAB === 'zones') {
+    const rows = C.zones.map(z => ({ z, codes: z.codes.map((_, i) => arr(z.codes, i, i === 1)) }));
+    const add = el('button', { onclick: () => { for (const z of MODEL.zones) zoneRc(z.n, true); render(); } }, 'Add rows for zones that have none (alarm + trouble)');
+    p.append(fillBar(cellsOf(rows)), el('div', { class: 'bar' }, add),
+      table(['Zone', 'Name', 'Alarm', 'Restoral (restore)', 'Bypass', 'Trouble'], rows.map(r => rowEl(r, [el('td', {}, r.z.n), el('td', {}, (MODEL.zones.find(x => x.n === r.z.n) || {}).name || '')]))));
+  } else if (COMMTAB === 'system') {
+    const S = C.system, rows = [{ codes: S.codes.map((_, i) => arr(S.codes, i, SYS_RESTORE.has(i))) }];
+    p.append(el('div', { class: 'bar' }, el('label', {}, 'AC fail delay', num(S.acFailDelay, v => S.acFailDelay = v)), el('label', {}, 'Auto-test hours', num(S.testHours, v => S.testHours = v)), el('label', {}, 'Auto-test minutes', num(S.testMinutes, v => S.testMinutes = v)), el('label', {}, 'Auto-test every N days', num(S.testDays, v => S.testDays = v))),
+      fillBar(cellsOf(rows)),
+      el('div', { class: 'tablewrap' }, el('table', {}, el('tbody', {}, META.systemRcLabels.map((l, i) => el('tr', {}, el('td', {}, lab(l, SYS_RESTORE.has(i))), el('td', { class: 'c' }, rcChk(rows[0].codes[i]))))))));
+  } else {
+    const rows = C.keypads.filter(k => MODEL.keypads.some(x => x.n === k.n)).map(k => ({ k, codes: k.codes.map((_, i) => arr(k.codes, i, false)) }));
+    p.append(el('div', { class: 'hint' }, 'Keypad function-key report codes (F1-F6, used by the keypad panic keys). Only keypads that exist in this account are shown.'), fillBar(cellsOf(rows)),
+      table(['Keypad', 'Name', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6'], rows.map(r => rowEl(r, [el('td', {}, r.k.n), el('td', {}, (MODEL.keypads.find(x => x.n === r.k.n) || {}).name || '')]))));
+  }
+}
+
+// ---- OVERVIEW: counts and mistakes worth fixing before the file goes anywhere ------------------------------------------
+function validate() {
+  const out = [], add = (lv, msg, tab) => out.push({ lv, msg, tab });
+  const areaSet = new Set(MODEL.areas.map(a => a.n));
+  // users
+  const byCode = new Map();
+  for (const u of MODEL.users) { if (/^0*$/.test(u.code)) continue; (byCode.get(u.code) || byCode.set(u.code, []).get(u.code)).push(u.n); }
+  for (const [c, ns] of byCode) if (ns.length > 1) add('e', `Users ${ns.join(', ')} share the same code.`, 'users');
+  for (const u of MODEL.users) {
+    if (u.n > 199) continue;                                   // 201+ are special slots (installer/RP codes), not ordinary users
+    const power = ['arm', 'disarm', 'bypass', 'master', 'access'].some(k => has(u, k));
+    if (power && /^0*$/.test(u.code)) add('w', `User ${u.n}${u.name ? ' (' + u.name + ')' : ''} has permissions but an empty (all zero) code.`, 'users');
+    if (/^(0123|1234|2345|3456|4567|5678|6789|1111|2222|3333|4444|5555|6666|7777|8888|9999|0000)/.test(u.code) && u.code.length >= 4 && power && !/^0*$/.test(u.code)) add('i', `User ${u.n} has an easily guessed code.`, 'users');
+    if (power && !u.flags.some(f => /^area[1-8]$/.test(f))) add('w', `User ${u.n}${u.name ? ' (' + u.name + ')' : ''} is not assigned to any area.`, 'users');
+  }
+  // zones
+  const seen = new Map(), unnamed = [], noRc = [];
+  for (const z of MODEL.zones) {
+    if (!areaSet.has(z.area)) add('e', `Zone ${z.n} (${z.name}) is in area ${z.area}, which is not defined.`, 'zones');
+    if (z.definition !== 0 && /^zone\s*\d+$/i.test(z.name.trim())) unnamed.push(z.n);
+    if (z.definition !== 0 && z.name.trim()) { const k = z.name.trim().toLowerCase(); if (seen.has(k)) add('w', `Zones ${seen.get(k)} and ${z.n} have the same name “${z.name.trim()}”.`, 'zones'); else seen.set(k, z.n); }
+    if (MODEL.comm && z.definition !== 0 && !zoneRc(z.n)) noRc.push(z.n);
+  }
+  const list = a => a.length > 8 ? a.slice(0, 8).join(', ') + ` and ${a.length - 8} more` : a.join(', ');
+  if (noRc.length) add('w', `${noRc.length} defined zone(s) have no report-code row and will not report: ${list(noRc)}. Tick any Report box on the Zones grid (or use Add rows on System events > Zone RCs).`, 'zones');
+  if (unnamed.length) add('i', `${unnamed.length} defined zone(s) still have the default name: ${list(unnamed)}.`, 'zones');
+  // areas / keypads
+  for (const k of MODEL.keypads) if (!areaSet.has(k.area)) add('e', `Keypad ${k.n} (${k.name}) is in area ${k.area}, which is not defined.`, 'keypads');
+  for (const a of MODEL.areas) if (!MODEL.keypads.some(k => k.area === a.n)) add('w', `Area ${a.n} (${a.name}) has no keypad.`, 'areas');
+  // phones
+  for (const t of MODEL.phones) {
+    if (t.format === 0) continue;
+    if (t.format !== 6 && !t.number.trim()) add('w', `Telephone ${t.n} (${t.name}) has a reporting format but no number.`, 'phones');
+    if (t.format === 6 && !t.accountCodes.some(acctOn)) add('w', `Telephone ${t.n} (${t.name}) is IP but no area is ticked.`, 'phones');
+    if (t.format !== 6 && !t.accountCodes.some(acctOn)) add('w', `Telephone ${t.n} (${t.name}) has no area account number.`, 'phones');
+  }
+  // wireless
+  const wc = wirelessCount(); if (wc > 9) add('w', 'More than 9 wireless zone groups (144 zones) is more than one receiver supports.', 'groups');
+  return out;
+}
+function overviewTab(p) {
+  const defined = MODEL.zones.filter(z => z.definition !== 0).length;
+  p.append(el('div', {},
+    [[MODEL.zones.length, 'zones (' + defined + ' defined)'], [MODEL.users.length, 'users'], [MODEL.areas.length, 'areas'], [MODEL.keypads.length, 'keypads'], [MODEL.phones.length, 'telephones'], [wirelessCount() * 16, 'wireless zones']]
+      .map(([n, t]) => el('div', { class: 'stat' }, el('b', {}, n), t))));
+  const issues = validate();
+  p.append(el('h3', { style: 'margin:8px 0' }, issues.length ? `Things to check (${issues.length})` : 'Nothing to check'));
+  if (!issues.length) p.append(el('div', { class: 'hint' }, 'No problems found: codes are unique, every zone and keypad is in a defined area, and every defined zone has report codes.'));
+  else p.append(el('div', { class: 'tablewrap' }, issues.map(i => el('div', { class: 'issue ' + i.lv }, el('span', { class: 'lv' }, { e: 'Error', w: 'Check', i: 'Note' }[i.lv]), el('span', { style: 'flex:1' }, i.msg), el('button', { onclick: () => { TAB = i.tab; render(); } }, 'Go to ' + TABS[i.tab][0])))));
+  p.append(el('details', { open: true }, el('summary', {}, 'Quick guide'), el('ul', { class: 'hint' },
+    el('li', {}, 'One screen per thing: a zone’s name, type, area, attributes and what it reports are all on the Zones grid; a user’s permissions and open/close reporting are on Users; an area’s delays, options and reporting are on one card.'),
+    el('li', {}, 'In any grid: ', el('kbd', {}, 'Enter'), ' or ', el('kbd', {}, '↓'), ' goes down a row, ', el('kbd', {}, 'Ctrl+D'), ' copies the cell above, and you can paste a block copied from Excel or Sheets.'),
+    el('li', {}, el('kbd', {}, 'Ctrl+Z'), ' / ', el('kbd', {}, 'Ctrl+Y'), ' undo and redo any change. Unsaved work is also kept as a draft on this computer.'),
+    el('li', {}, 'Save an export to import in ElkRP, or use ', el('b', {}, 'Panel…'), ' to compare with and send to the panel directly.'))));
+}
+
+// ---- DATA BUS PLANNER: plan the M1 data bus (direct daisy chain, M1DBH hub, M1DBHR retrofit hub) and check it against ELK's rules -------------------------
+// The rules and the checklist come from /api/databus/check (Elk.Protocol/DataBusPlan.cs); this page edits the plan, draws it and shows the answer.
+const BUS = { plan: { runs: [] }, result: null, err: '', timer: null, left: null, right: null };
+try { const s = localStorage.getItem('elkbus'); if (s) { const p = JSON.parse(s); if (p && Array.isArray(p.runs)) BUS.plan = { runs: p.runs }; } } catch (e) { }
+const busDev = (model, address, name) => ({ model, address, name: name || '', ma: 0 });
+const busRun = (name, ft, devs) => ({ name, lengthFt: ft || 0, devices: devs || [] });
+const busNewRun = kind => kind === 'direct' ? { kind, name: 'Bus', run: busRun('Bus', 0, [busDev('Keypad', 1, 'Keypad 1')]), feedFt: 1, hubs: [], branches: [] }
+  : kind === 'dbh' ? { kind, name: 'Hub', run: busRun('', 0), feedFt: 1, hubs: [{ homeRuns: [busRun('Keypad 1', 0, [busDev('Keypad', 1, 'Keypad 1')])], crossoverFt: 0 }], branches: [] }
+    : { kind, name: 'Retrofit hub', run: busRun('', 0), feedFt: 1, hubs: [], branches: [0, 1, 2, 3].map(i => ({ runs: i === 0 ? [busRun('Keypad 1', 0, [busDev('Keypad', 1, 'Keypad 1')])] : [] })) };
+const busAllDevices = () => { const o = []; for (const m of BUS.plan.runs) { (m.run ? m.run.devices : []).forEach(d => o.push(d)); (m.hubs || []).forEach(h => h.homeRuns.forEach(r => r.devices.forEach(d => o.push(d)))); (m.branches || []).forEach(b => b.runs.forEach(r => r.devices.forEach(d => o.push(d)))); } return o; };
+function busFreeAddress(modelId) {
+  const mo = META.busModels.find(x => x.id === modelId) || META.busModels[0], used = new Set(busAllDevices().filter(d => (META.busModels.find(x => x.id === d.model) || {}).type === mo.type).map(d => d.address));
+  for (let a = mo.minAddress; a <= mo.maxAddress; a++) if (!used.has(a)) return a; return mo.minAddress;
+}
+function busChanged(structural) {
+  try { localStorage.setItem('elkbus', JSON.stringify(BUS.plan)); } catch (e) { }
+  if (structural && BUS.left && BUS.left.isConnected) busPaintForm();
+  busRecheck();
+}
+function busRecheck() {
+  clearTimeout(BUS.timer);
+  BUS.timer = setTimeout(async () => {
+    const plan = JSON.parse(JSON.stringify(BUS.plan)); plan.wirelessGroups = MODEL ? MODEL.zoneGroups.map((v, i) => v === 1 ? i + 1 : 0).filter(Boolean) : [];
+    try { const r = await fetch('/api/databus/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(plan) }); BUS.err = r.ok ? '' : await r.text(); BUS.result = r.ok ? await r.json() : null; }
+    catch (e) { BUS.err = String(e.message || e); BUS.result = null; }
+    if (TAB === 'databus' && BUS.right && BUS.right.isConnected) busPaintResults();
+  }, 150);
+}
+const busInput = (type, val, on, attrs) => { const i = el('input', Object.assign({ type, value: val === 0 && type === 'number' ? '' : (val ?? '') }, attrs || {})); i.oninput = () => on(type === 'number' ? (i.value === '' ? 0 : +i.value) : i.value); return i; };
+
+// ---- the editing form ---------------------------------------------------------------------------------------------------------------------------------
+function busDevices(devs) {
+  const box = el('div', {});
+  devs.forEach((d, i) => {
+    const m = el('select', { title: 'Device model' }, META.busModels.map(x => el('option', { value: x.id, selected: x.id === d.model }, x.label)));
+    m.onchange = () => { d.model = m.value; busChanged(true); };
+    const mv = (to) => { const j = i + to; if (j < 0 || j >= devs.length) return; [devs[i], devs[j]] = [devs[j], devs[i]]; busChanged(true); };
+    box.append(el('div', { class: 'busdev' }, m,
+      el('label', { class: 'bl' }, 'Addr', busInput('number', d.address, v => { d.address = v; busChanged(false); }, { min: 1, max: 16, style: 'width:56px', title: 'Data bus address (the address switches on the device)' })),
+      busInput('text', d.name, v => { d.name = v; busChanged(false); }, { placeholder: 'name / place', size: 14 }),
+      busInput('number', d.ma, v => { d.ma = v; busChanged(false); }, { placeholder: 'mA', min: 0, style: 'width:60px', title: 'Current the device draws from the bus supply (optional, for the power check)' }),
+      el('button', { title: 'Move towards the control', onclick: () => mv(-1), disabled: i === 0 }, '↑'), el('button', { title: 'Move away from the control (the last one is the end of the run)', onclick: () => mv(1), disabled: i === devs.length - 1 }, '↓'),
+      el('button', { title: 'Remove this device', onclick: () => { devs.splice(i, 1); busChanged(true); } }, '✕')));
+  });
+  box.append(el('button', { onclick: () => { devs.push(busDev('Keypad', busFreeAddress('Keypad'))); busChanged(true); } }, '+ device'));
+  return box;
+}
+function busRunBox(run, remove, lengthLabel) {
+  return el('div', { class: 'busrun' }, el('div', { class: 'row' },
+    el('label', {}, 'Name / place', busInput('text', run.name, v => { run.name = v; busChanged(false); }, { size: 14 })),
+    el('label', {}, lengthLabel || 'Cable length (ft)', busInput('number', run.lengthFt, v => { run.lengthFt = v; busChanged(false); }, { min: 0, step: 5, style: 'width:90px' })),
+    remove ? el('button', { onclick: remove }, 'Remove this run') : null), busDevices(run.devices));
+}
+function busMainCard(m, i) {
+  const title = { direct: 'Direct daisy chain', dbh: 'Data bus hub (M1DBH)', dbhr: 'Retrofit hub (M1DBHR)' }[m.kind] || m.kind;
+  const head = el('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:6px' }, el('b', {}, `Run ${i + 1}: ${title}`),
+    el('button', { onclick: () => { BUS.plan.runs.splice(i, 1); busChanged(true); } }, 'Remove this run'));
+  const body = [];
+  if (m.kind === 'direct') {
+    body.push(el('div', { class: 'hint' }, 'Devices in the order they are wired, nearest the control first. The last one is terminated.'), busRunBox(m.run, null, 'Total cable length (ft)'));
+  } else if (m.kind === 'dbh') {
+    body.push(el('label', { class: 'bl' }, 'Cable from the control to hub 1 (ft)', busInput('number', m.feedFt, v => { m.feedFt = v; busChanged(false); }, { min: 0, style: 'width:90px' })));
+    m.hubs.forEach((h, k) => {
+      const last = k === m.hubs.length - 1;
+      body.push(el('div', { class: 'busrun', style: 'background:var(--card)' }, el('div', { class: 'row', style: 'justify-content:space-between' }, el('b', {}, `Hub ${k + 1} (jacks J1 to J9)`),
+        m.hubs.length > 1 ? el('button', { onclick: () => { m.hubs.splice(k, 1); busChanged(true); } }, 'Remove hub') : null),
+        ...h.homeRuns.map((hr, j) => busRunBox(hr, () => { h.homeRuns.splice(j, 1); busChanged(true); }, `Home run to J${j + 1} (ft)`)),
+        el('div', { class: 'row' }, el('button', { disabled: h.homeRuns.length >= (last ? 9 : 8), title: last ? 'The last hub can use all nine jacks; then the device on J9 is terminated instead of using the plug' : 'This hub needs J9 free for the crossover cable to the next hub', onclick: () => { const n = h.homeRuns.length + 1; h.homeRuns.push(busRun('Home run ' + n, 0, [busDev('Keypad', busFreeAddress('Keypad'))])); busChanged(true); } }, '+ home run'),
+          last ? el('label', { class: 'bl', title: 'Normally the 120 Ω RJ45 plug goes in the first free jack. With every jack used, or if you prefer, fit the terminating jumper on the device on the last jack instead.' },
+            el('input', { type: 'checkbox', checked: h.terminateAtDevice || h.homeRuns.length >= 9, disabled: h.homeRuns.length >= 9, onchange: e => { h.terminateAtDevice = e.target.checked; busChanged(true); } }),
+            h.homeRuns.length >= 9 ? 'All nine jacks used: terminate the device on J9 (no plug)' : 'Terminate the device on the last jack instead of using the plug')
+            : el('label', { class: 'bl' }, `Crossover cable to hub ${k + 2} (ft)`, busInput('number', h.crossoverFt, v => { h.crossoverFt = v; busChanged(false); }, { min: 0, style: 'width:90px' })))));
+    });
+    body.push(el('button', { onclick: () => { m.hubs.push({ homeRuns: [], crossoverFt: 0 }); busChanged(true); } }, '+ another hub (straight daisy chain with a crossover cable)'));
+  } else if (m.kind === 'dbhr') {
+    body.push(el('label', { class: 'bl' }, 'Short cable from the control to the hub (ft)', busInput('number', m.feedFt, v => { m.feedFt = v; busChanged(false); }, { min: 0, style: 'width:90px' })));
+    m.branches.forEach((b, k) => body.push(el('div', { class: 'busrun', style: 'background:var(--card)' }, el('div', { class: 'row', style: 'justify-content:space-between' }, el('b', {}, `Branch ${k + 1} (jumper JP${k + 2})`),
+      el('button', { disabled: b.runs.length >= 2, title: 'A branch takes up to 2 home runs', onclick: () => { b.runs.push(busRun('Home run', 0, [busDev('Keypad', busFreeAddress('Keypad'))])); busChanged(true); } }, '+ home run')),
+      b.runs.length ? null : el('div', { class: 'hint' }, 'Not used.'), ...b.runs.map((hr, j) => busRunBox(hr, () => { b.runs.splice(j, 1); busChanged(true); })))));
+  }
+  return el('div', { class: 'busmain' }, head, ...body);
+}
+const BUS_EXAMPLES = {
+  direct: () => [{ kind: 'direct', name: 'Bus', run: busRun('Bus', 220, [busDev('Keypad', 1, 'Foyer'), busDev('M1XRFTWM', 2, 'Wireless'), busDev('M1XIN', 3, 'Garage'), busDev('Keypad', 2, 'Bedroom')]), feedFt: 1, hubs: [], branches: [] }],
+  dbh: () => [{ kind: 'dbh', name: 'Hub', run: busRun('', 0), feedFt: 2, hubs: [{ homeRuns: [busRun('Foyer', 60, [busDev('Keypad', 1, 'Foyer')]), busRun('Garage', 110, [busDev('M1XIN', 3, 'Garage')]), busRun('Bedroom', 75, [busDev('Keypad', 2, 'Bedroom')]), busRun('Roof', 90, [busDev('M1XRFTWM', 2, 'Wireless')])], crossoverFt: 0 }], branches: [] }],
+  dbhr: () => [{ kind: 'dbhr', name: 'Retrofit hub', run: busRun('', 0), feedFt: 2, hubs: [], branches: [{ runs: [busRun('Foyer', 80, [busDev('Keypad', 1, 'Foyer')])] }, { runs: [busRun('Upstairs', 120, [busDev('Keypad', 2, 'Hall'), busDev('M1XIN', 3, 'Attic')]), busRun('Garage', 140, [busDev('M1XIN', 4, 'Garage')])] }, { runs: [] }, { runs: [] }] }],
+  mixed: () => [{ kind: 'dbhr', name: 'Retrofit hub', run: busRun('', 0), feedFt: 2, hubs: [], branches: [{ runs: [busRun('Foyer', 80, [busDev('Keypad', 1, 'Foyer')])] }, { runs: [] }, { runs: [] }, { runs: [] }] }, { kind: 'direct', name: 'Garage run', run: busRun('Garage run', 180, [busDev('M1XIN', 3, 'Garage'), busDev('M1XOVR', 1, 'Outputs')]), feedFt: 1, hubs: [], branches: [] }],
+};
+function busPaintForm() {
+  const f = BUS.left; f.replaceChildren();
+  const n = BUS.plan.runs.length;
+  const add = (kind, label, tip) => el('button', { disabled: n >= 2, title: n >= 2 ? 'No more than 2 runs may connect to the control' : tip, onclick: () => { BUS.plan.runs.push(busNewRun(kind)); busChanged(true); } }, label);
+  const ex = el('select', { title: 'Replace the plan with an example' }, el('option', { value: '' }, 'Load an example…'), el('option', { value: 'direct' }, 'Direct daisy chain'), el('option', { value: 'dbh' }, 'Data bus hub (M1DBH)'), el('option', { value: 'dbhr' }, 'Retrofit hub (M1DBHR)'), el('option', { value: 'mixed' }, 'Retrofit hub plus a direct run'));
+  ex.onchange = () => { if (ex.value) { BUS.plan = { runs: BUS_EXAMPLES[ex.value]() }; busChanged(true); } };
+  f.append(el('div', { class: 'bar' },
+    el('b', {}, 'Add a run'), add('direct', 'Direct daisy chain', 'Devices wired one after another from the control'), add('dbh', 'Data bus hub (M1DBH)', 'New CAT5/6 home runs to an M1DBH: preferred where the wiring allows'), add('dbhr', 'Retrofit hub (M1DBHR)', 'Existing 4-conductor home runs'),
+    el('span', { style: 'flex:1' }), ex),
+    el('div', { class: 'bar plain' },
+      el('button', { disabled: !MODEL, title: 'Add the keypads, hardwired expanders and wireless transceiver this account needs', onclick: busSuggest }, 'Add the devices this account needs'),
+      el('button', { disabled: !LIVE.on, title: LIVE.on ? 'List the modules the panel has enrolled' : 'Connect on the Live tab first', onclick: busFromLive }, 'Read devices from the panel'),
+      el('span', { style: 'flex:1' }),
+      el('button', { onclick: busSavePlan }, 'Save plan…'), el('button', { onclick: () => NATIVE ? window.external.sendMessage(JSON.stringify({ cmd: 'openFile', purpose: 'plan' })) : $('#busIn').click() }, 'Open plan…'),
+      el('button', { onclick: () => window.print(), title: 'Print the diagram and the checklist, or save them as a PDF' }, 'Print'),
+      armBtn('Clear', () => { if (!n) throw new Error('The plan is already empty.'); return 'Clear the whole plan'; }, () => { BUS.plan = { runs: [] }; busChanged(true); })));
+  if (!n) f.append(el('div', { class: 'hint', style: 'font-size:13px' }, 'Start with the kind of wiring you have: a data bus hub (M1DBH) is preferred and uses new CAT5/6 home runs; a retrofit hub (M1DBHR) reuses existing 4-conductor wires; a direct daisy chain connects devices one after another from the control. You can combine up to two runs.'));
+  BUS.plan.runs.forEach((m, i) => f.append(busMainCard(m, i)));
+  f.append(el('details', {}, el('summary', {}, 'The rules this planner checks'), el('ul', { class: 'hint' },
+    el('li', {}, 'Device types: Type 1 = keypads, M1KAM, supervised power supplies; Type 2 = input expanders (M1XIN, M1XRFTWM, M1XRFEG, M1XRF2H); Type 3 = output expanders (M1XOVR); Type 5 = serial expanders (M1XSP, M1XSLU, M1PCSPIM). An address may be used once per type, so a keypad and an M1XIN can share one but a keypad and an M1KAM cannot.'),
+    el('li', {}, 'No more than 2 runs connect to the control (screw terminals, J1 and J2 together). There are exactly 2 termination points: the end device of each run, plus JP3 on the control when there is only one run.'),
+    el('li', {}, 'Devices on a run are daisy chained: no star or T connections.'),
+    el('li', {}, 'M1DBH: 9 RJ45 jacks filled from J1 without gaps. The bus ends either with the 120 Ω terminating plug in the first free jack after the last cable, or, when all nine jacks are used (or you prefer), with the terminating jumper on the device on the last jack; no other device is terminated. A hub that is not the last keeps J9 free for the crossover cable; hubs are linked in one straight chain. Continuous CAT5/6 only; 4,000 ft maximum with every home run counted twice.'),
+    el('li', {}, 'M1DBHR: mounted inside the control, 4 branches of up to 2 home runs, each branch terminated twice (last device plus its hub jumper when there is one home run; both end devices when there are two), no more than two hubs, 4,000 ft per branch, 24 AWG minimum.'),
+    el('li', {}, 'Wireless: the primary M1XRFTWM at address 2 (more at 3, 4, 5); a hardwired expander at address 3 to 10 uses up one group of 16 wireless zones; an expander cannot sit on zones the account has set as wireless.'),
+    el('li', {}, 'From ELK’s “5 Tips for the M1 Data Bus” page and the M1DBH and M1DBHR instruction sheets. The tips video that goes with the page has not been reviewed, so anything said only in it is not checked yet.'))));
+}
+function busTab(p) {
+  BUS.left = el('div', { class: 'bus-left' }); BUS.right = el('div', { class: 'bus-right' });
+  p.append(el('div', { class: 'hint noprint' }, 'Plan how the data bus is wired: which runs leave the control, where the hubs and the devices are, and where it is terminated. The plan is checked against ELK’s rules as you edit and turned into an install checklist. It is kept in this browser or app and saved on request; it is not part of the account export.'),
+    el('div', { class: 'bus-grid' }, BUS.left, BUS.right));
+  busPaintForm(); busPaintResults(); busRecheck();
+}
+
+// ---- adding devices from the account or the panel -------------------------------------------------------------------------------------------------------
+function busAddDevices(devs) {
+  if (!BUS.plan.runs.length) BUS.plan.runs.push(busNewRun('direct')), BUS.plan.runs[0].run.devices = [];
+  const have = new Set(busAllDevices().map(d => d.model + '#' + d.address)); let added = 0;
+  for (const d of devs) {
+    if (have.has(d.model + '#' + d.address)) continue; have.add(d.model + '#' + d.address); added++;
+    const m = BUS.plan.runs[0];
+    if (m.kind === 'direct') m.run.devices.push(d);
+    else if (m.kind === 'dbh') { let h = m.hubs[m.hubs.length - 1]; if (!h || h.homeRuns.length >= 8) { h = { homeRuns: [], crossoverFt: 0 }; m.hubs.push(h); } h.homeRuns.push(busRun(d.name || d.model, 0, [d])); }
+    else { const b = m.branches.find(x => x.runs.length < 2); if (b) b.runs.push(busRun(d.name || d.model, 0, [d])); else BUS.plan.runs[0].branches[3].runs.push(busRun(d.name || d.model, 0, [d])); }
+  }
+  busChanged(true); showErr(''); showOk(added ? `Added ${added} device(s) to run 1. Enter the cable lengths, and move the devices to the run they are really on.` : 'Those devices are already in the plan.');
+}
+function busSuggest() {
+  const devs = MODEL.keypads.map(k => busDev('Keypad', k.n, k.name || 'Keypad ' + k.n)); let wl = false;
+  for (let g = 2; g <= 13; g++) {
+    const on = MODEL.zoneGroups[g - 1] === 1, lo = 16 * (g - 1) + 1, hi = 16 * g;
+    if (on) wl = true; else if (MODEL.zones.some(z => z.n >= lo && z.n <= hi && z.definition !== 0)) devs.push(busDev('M1XIN', g, `zones ${lo}-${hi}`));
+  }
+  if (wl) devs.push(busDev('M1XRFTWM', 2, 'wireless'));
+  busAddDevices(devs);
+}
+async function busFromLive() {
+  try {
+    const r = await fetch('/api/live/modules', { method: 'POST' }); if (!r.ok) { showErr(await r.text()); return; }
+    const d = await r.json(), ids = new Set(META.busModels.map(x => x.id)), devs = [];
+    for (const m of d.modules) {
+      if (m.kind === 'Keypad') devs.push(busDev('Keypad', m.address, 'Keypad ' + m.address));
+      else if (m.kind === 'Input expander') devs.push(ids.has(m.model) ? busDev(m.model, m.address, '') : busDev(m.model.startsWith('M1XRF') ? 'M1XRFEG' : 'M1XIN', m.address, m.model));
+      else if (m.kind === 'Output expander') devs.push(busDev('M1XOVR', m.address, ''));
+      else if (m.kind === 'Serial port expander') devs.push(busDev(ids.has(m.model) ? m.model : 'M1XSP', m.address, ids.has(m.model) ? '' : m.model));
+    }
+    busAddDevices(devs);
+  } catch (e) { showErr(String(e.message || e)); }
+}
+function busSavePlan() {
+  const text = JSON.stringify({ runs: BUS.plan.runs }, null, 2), name = 'Data bus plan.json';
+  if (NATIVE) { window.external.sendMessage(JSON.stringify({ cmd: 'saveFile', purpose: 'plan', ext: '.json', name, b64: toB64(new TextEncoder().encode(text).buffer) })); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); showErr(''); showOk('Saved ' + name + '.');
+}
+function busOpenText(text) {
+  try { const p = JSON.parse(text); if (!p || !Array.isArray(p.runs)) throw new Error('this is not a data bus plan'); BUS.plan = { runs: p.runs }; TAB = 'databus'; busChanged(true); render(); showErr(''); showOk('Plan loaded.'); }
+  catch (e) { showErr('Could not read that plan: ' + e.message); }
+}
+$('#busIn').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (f) busOpenText(await f.text()); };
+
+// ---- results: summary, diagram, problems, checklist ------------------------------------------------------------------------------------------------------
+const busEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function busDiagram(plan, r) {
+  const rows = [], ft = v => (v ? v + ' ft' : '? ft'), IW = 132, GAP = 14, X0 = 20;
+  plan.runs.forEach((m, i) => {
+    if (m.kind === 'direct') rows.push({ ind: 0, label: `Run ${i + 1}: ${m.name || 'direct'} · ${ft(m.run.lengthFt)}`, items: m.run.devices, tail: 'T' });
+    else if (m.kind === 'dbh') m.hubs.forEach((h, k) => {
+      rows.push({ ind: 0, head: true, label: `Run ${i + 1}: M1DBH hub ${k + 1}` + (k === 0 ? ` · feed ${ft(m.feedFt)}` : '') });
+      const lastHub = k === m.hubs.length - 1, atDevice = lastHub && h.homeRuns.length > 0 && (h.terminateAtDevice || h.homeRuns.length >= 9);
+      h.homeRuns.forEach((hr, j) => rows.push({ ind: 1, label: `J${j + 1} ${hr.name || ''} · ${ft(hr.lengthFt)} (counts double)`, items: hr.devices, tail: atDevice && j === h.homeRuns.length - 1 ? 'T' : '' }));
+      if (!atDevice) rows.push({ ind: 1, label: `J${h.homeRuns.length + 1}`, items: [], tail: lastHub ? 'PLUG' : 'CROSS', cross: k + 2 });
+    });
+    else if (m.kind === 'dbhr') {
+      rows.push({ ind: 0, head: true, label: `Run ${i + 1}: M1DBHR · feed ${ft(m.feedFt)} · JP1 on` });
+      m.branches.forEach((b, k) => {
+        if (!b.runs.length) { rows.push({ ind: 1, head: true, small: true, label: `Branch ${k + 1}: not used` }); return; }
+        b.runs.forEach((hr, j) => rows.push({ ind: 1, label: `Branch ${k + 1}${b.runs.length > 1 ? ' run ' + (j + 1) : ''}: ${hr.name || ''} · ${ft(hr.lengthFt)}`, items: hr.devices, tail: 'T', jp: j === b.runs.length - 1 ? `JP${k + 2} ${b.runs.length === 1 ? 'ON' : 'OFF'}` : '' }));
+      });
+    }
+  });
+  const maxItems = Math.max(1, ...rows.map(x => (x.items || []).length)), W = Math.max(640, X0 + 40 + maxItems * (IW + GAP) + 190);
+  let y = 14, out = '';
+  out += `<rect x="${X0}" y="${y}" width="170" height="40" rx="6" style="fill:var(--bar);stroke:var(--bar-line)"/><text x="${X0 + 10}" y="${y + 17}" font-size="12" font-weight="700" style="fill:var(--ink)">M1 control</text>`;
+  out += `<text x="${X0 + 10}" y="${y + 32}" font-size="11" style="fill:var(--mute)">JP3 ${r && r.jp3 ? 'ON (one run)' : 'OFF'}</text>`;
+  y += 50;
+  for (const row of rows) {
+    const x = X0 + row.ind * 22;
+    if (row.head) { out += `<text x="${x}" y="${y + 14}" font-size="12" font-weight="${row.small ? 400 : 700}" style="fill:${row.small ? 'var(--mute)' : 'var(--ink)'}">${busEsc(row.label)}</text>`; y += row.small ? 22 : 26; continue; }
+    out += `<text x="${x}" y="${y + 11}" font-size="11" style="fill:var(--mute)">${busEsc(row.label)}</text>`;
+    const by = y + 16; let cx = x;
+    out += `<line x1="${x - 8}" y1="${by + 17}" x2="${x}" y2="${by + 17}" stroke-width="2" style="stroke:var(--mute)"/>`;
+    for (const d of (row.items || [])) {
+      const m = META.busModels.find(q => q.id === d.model), t = m ? m.type : '?';
+      out += `<rect x="${cx}" y="${by}" width="${IW}" height="34" rx="6" style="fill:var(--card);stroke:var(--acc)"/>`
+        + `<text x="${cx + 7}" y="${by + 14}" font-size="11" font-weight="700" style="fill:var(--ink)">${busEsc(d.model)} · addr ${busEsc(d.address)}</text>`
+        + `<text x="${cx + 7}" y="${by + 28}" font-size="10" style="fill:var(--mute)">Type ${t}${d.name ? ' · ' + busEsc(d.name).slice(0, 14) : ''}</text>`;
+      cx += IW; out += `<line x1="${cx}" y1="${by + 17}" x2="${cx + GAP}" y2="${by + 17}" stroke-width="2" style="stroke:var(--mute)"/>`; cx += GAP;
+    }
+    const tag = (text, fill, stroke, w) => { out += `<rect x="${cx}" y="${by + 3}" width="${w}" height="28" rx="14" style="fill:${fill};stroke:${stroke}"/><text x="${cx + w / 2}" y="${by + 21}" font-size="11" font-weight="700" text-anchor="middle" style="fill:${stroke}">${busEsc(text)}</text>`; cx += w + 8; };
+    if (row.tail === 'T') tag('T  end', 'var(--bad-bg)', 'var(--bad)', 62);
+    else if (row.tail === 'PLUG') tag('120 Ω plug', 'var(--bad-bg)', 'var(--bad)', 92);
+    else if (row.tail === 'CROSS') tag('crossover → hub ' + row.cross, 'var(--bar)', 'var(--info)', 150);
+    if (row.jp) tag(row.jp, row.jp.endsWith('ON') ? 'var(--bad-bg)' : 'var(--soft)', row.jp.endsWith('ON') ? 'var(--bad)' : 'var(--mute)', 70);
+    y += 56;
+  }
+  return `<svg viewBox="0 0 ${W} ${y + 6}" width="100%" role="img" aria-label="Data bus diagram" style="max-width:${W}px;display:block;font-family:system-ui,sans-serif">${out}</svg>`;
+}
+function busPaintResults() {
+  const box = BUS.right; if (!box) return; box.replaceChildren();
+  const r = BUS.result;
+  if (!BUS.plan.runs.length) { box.append(el('div', { class: 'hint' }, 'The diagram, the problems found and the install checklist appear here once there is a run.')); return; }
+  if (!r) { box.append(el('div', { class: BUS.err ? 'err' : 'hint', style: BUS.err ? 'display:block;margin:0' : '' }, BUS.err || 'Checking…')); return; }
+  const pct = Math.round(100 * r.mainBusFt / r.limitFt), col = pct > 100 ? 'var(--bad)' : pct > 80 ? 'var(--warn)' : 'var(--good)';
+  const stat = (h, v, sub) => el('div', { class: 'stat' }, el('b', {}, v), h, sub ? el('div', { class: 'hint', style: 'margin:2px 0 0' }, sub) : null);
+  box.append(el('div', { class: 'row', style: 'gap:8px' },
+    stat('Main bus length', `${r.mainBusFt} ft`, `of ${r.limitFt} ft`), stat('Devices', r.devices, ''), stat('Power load', r.currentMa ? r.currentMa + ' mA' : '–', 'of 1250 mA'),
+    stat('JP3 on the control', r.jp3 ? 'Install' : 'Remove', r.jp3 ? 'one run' : 'two runs'),
+    stat('Check', r.errors ? r.errors + ' problem(s)' : r.warnings ? r.warnings + ' warning(s)' : 'OK', r.errors ? 'fix before installing' : r.warnings ? 'review' : 'no rule broken')));
+  const bar = el('div', { style: 'height:8px;border-radius:4px;background:var(--row);margin:2px 0 10px;overflow:hidden' }, el('div', { style: `height:100%;width:${Math.min(100, pct)}%;background:${col}` })); box.append(bar);
+  const dg = el('div', { class: 'busdiag', style: 'overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px;background:var(--card)' }); dg.innerHTML = busDiagram(BUS.plan, r); box.append(dg);
+  const order = { error: 0, warn: 1, info: 2 }, mark = { error: '✖', warn: '▲', info: 'ℹ' };
+  const iss = [...r.issues].sort((a, b) => order[a.level] - order[b.level]);
+  box.append(el('h3', { style: 'margin:12px 0 4px' }, 'Problems and advice'));
+  box.append(iss.length ? el('div', {}, iss.map(i => el('div', { class: 'iss ' + i.level }, el('b', {}, mark[i.level]), el('span', {}, i.text)))) : el('div', { class: 'hint' }, 'Nothing to report.'));
+  box.append(el('h3', { style: 'margin:12px 0 4px' }, 'Install checklist'));
+  r.checklist.forEach(g => box.append(el('details', { open: true }, el('summary', {}, g.title), el('ul', { style: 'margin:4px 0 4px 18px' }, g.items.map(t => el('li', {}, t))))));
+}
+
+const TABS = { overview: ['Overview', overviewTab], zones: ['Zones', zonesTab], groups: ['Wireless zone groups', groupsTab], wireless: ['Wireless devices', wirelessTab], users: ['Users', usersTab], areas: ['Areas', areasTab], keypads: ['Keypads', keypadsTab], databus: ['Data bus', busTab], phones: ['Telephones', phonesTab], globals: ['Globals', globalsTab], comm: ['System events', commTab], live: ['Live', liveTab] };
+function render() {
+  track(true);
+  const issues = MODEL ? validate() : [], nE = issues.filter(i => i.lv === 'e').length, nW = issues.filter(i => i.lv === 'w').length;
+  const nav = $('#tabs');
+  nav.replaceChildren(...Object.entries(TABS).map(([k, [t]]) => el('button', { class: (k === TAB ? 'on' : '') + (k === 'live' ? ' live' : ''), title: k === 'live' ? (LIVE.on ? 'Connected to the panel' : 'Not connected to the panel') : '', onclick: () => { TAB = k; render(); } }, k === 'live' ? el('span', { class: 'dot' + (LIVE.on ? ' up' : '') }) : null, t,
+    k === 'overview' && (nE + nW) ? el('span', { class: 'badge' + (nE ? '' : ' w') }, nE + nW) : null)));
+  const p = $('#panel'), y = window.scrollY; p.replaceChildren(); TABS[TAB][1](p); window.scrollTo(0, y);
+  setDirty(DIRTY);
+}
+
+// ---- open / save ----------------------------------------------------------------------------------------------------
+async function openBytes(name, buf) {
+  showErr(''); showOk('');
+  const r = await fetch('/api/open?name=' + encodeURIComponent(name), { method: 'POST', body: buf });
+  if (!r.ok) { showErr(await r.text()); return; }
+  load(await r.json());
+}
+async function openFile(file) { await openBytes(file.name, await file.arrayBuffer()); }
+
+// ---- native window bridge: when the page runs inside the desktop app, Open and Save use the operating system's file dialogs ----
+const NATIVE = !!(window.external && typeof window.external.sendMessage === 'function');
+const toB64 = buf => { let s = ''; const b = new Uint8Array(buf); for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(s); };
+const fromB64 = b64 => { const s = atob(b64), b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b.buffer; };
+if (NATIVE) window.external.receiveMessage(raw => {
+  let m; try { m = JSON.parse(raw); } catch (e) { return; }
+  if (m.cmd === 'opened') m.purpose === 'zones' ? zonesImportBytes(m.name, fromB64(m.b64)) : m.purpose === 'plan' ? busOpenText(new TextDecoder().decode(fromB64(m.b64))) : openBytes(m.name, fromB64(m.b64));
+  else if (m.cmd === 'saved' && m.purpose === 'zones') showOk('Zone list saved to ' + m.path + '.');
+  else if (m.cmd === 'saved' && m.purpose === 'plan') showOk('Plan saved to ' + m.path + '.');
+  else if (m.cmd === 'saved') { try { localStorage.removeItem('elkdraft:' + FILE); } catch (e) { } setDirty(false); showOk('Saved to ' + m.path + '. In ElkRP use File > Import Account and pick that file.'); }
+  else if (m.cmd === 'error') showErr(m.message);
+});
+function load(d) {
+  MODEL = d.model; FILE = d.file || 'export'; SEL.clear(); PREV = JSON.stringify(MODEL); UNDO = []; REDO = []; DIRTY = false; ZF.q = ''; ZF.area = ''; ZF.show = 'all'; UF.q = '';
+  $('#fileName').textContent = `${FILE} — ${MODEL.account} (${MODEL.panelType} ${MODEL.software})`;
+  $('#welcome').hidden = true; $('#app').hidden = false; $('#saveBtn').disabled = false; TAB = 'overview';
+  const bar = $('#draftbar'); bar.style.display = 'none'; bar.replaceChildren();
+  try {
+    const dr = JSON.parse(localStorage.getItem('elkdraft:' + FILE) || 'null');
+    if (dr && dr.model && dr.model !== PREV) {
+      bar.append('An unsaved draft of this file from ' + new Date(dr.t).toLocaleString() + ' was found in this browser. ',
+        el('button', { onclick: () => { MODEL = JSON.parse(dr.model); PREV = dr.model; bar.style.display = 'none'; render(); setDirty(true); } }, 'Restore draft'), ' ',
+        el('button', { onclick: () => { try { localStorage.removeItem('elkdraft:' + FILE); } catch (e) { } bar.style.display = 'none'; } }, 'Discard'));
+      bar.style.display = 'block';
+    }
+  } catch (e) { }
+  render(); setDirty(false);
+}
+// ---- send to / compare with the panel ---------------------------------------------------------------------------------
+let PANEL = { host: '', port: 2101, plain: true, tls: false, serial: '', mac: '', code: '246801' };         // 246801 is the factory default RP access code; the last code used is kept until the page is closed
+try { Object.assign(PANEL, JSON.parse(localStorage.getItem('elkpanel') || '{}')); } catch (e) { }
+function closeModal() { $('#modal').style.display = 'none'; }
+$('#panelBtn').onclick = () => {
+  const box = $('#modalBox'); box.replaceChildren();
+  const host = el('input', { type: 'text', size: 18, value: PANEL.host, placeholder: '192.168.x.x' }), port = el('input', { type: 'number', value: PANEL.port, style: 'width:80px' });
+  const mode = el('select', {}, el('option', { value: 'plain', selected: PANEL.plain }, 'Non-secure port (usually 2101)'), el('option', { value: 'tls', selected: !PANEL.plain && PANEL.tls }, 'Secure port, TLS (usually 2601) - M1XEP, needs the panel serial number'), el('option', { value: 'aes', selected: !PANEL.plain && !PANEL.tls }, 'Secure port, AES with passphrase (older)'));
+  const serial = el('input', { type: 'text', size: 10, maxlength: 8, value: PANEL.serial || '', placeholder: '00000001' });
+  const mac = el('input', { type: 'text', size: 18, value: PANEL.mac, placeholder: '00:40:9D:xx:xx:xx' }), pass = el('input', { type: 'password', size: 14, autocomplete: 'off' });
+  const code = el('input', { type: 'password', size: 10, autocomplete: 'off', placeholder: 'RP access code', value: PANEL.code || '246801' });
+  const secureRow = el('div', { class: 'row', style: 'margin-top:6px' }, el('label', {}, 'M1XEP MAC address', mac), el('label', {}, 'Passphrase', pass));
+  const tlsRow = el('div', { class: 'row', style: 'margin-top:6px' }, el('label', {}, 'Panel serial number (8 hex digits)', serial), el('span', { class: 'hint', style: 'margin:0' }, 'No passphrase, user name or password is needed. The serial number is on the control board and in the account details in ElkRP.'));
+  const sync = () => { secureRow.style.display = mode.value === 'aes' ? 'flex' : 'none'; tlsRow.style.display = mode.value === 'tls' ? 'flex' : 'none'; if (mode.value === 'plain' && +port.value === 2601) port.value = 2101; if (mode.value !== 'plain' && +port.value === 2101) port.value = 2601; };
+  mode.onchange = sync; sync();
+  const out = el('div'), status = el('div', { class: 'hint' });
+  const ack = el('input', { type: 'checkbox' }), sendBtn = el('button', { class: 'primary', disabled: true }, 'Send to panel'), cmpBtn = el('button', {}, 'Compare with panel');
+  const ackRow = el('label', { class: 'cb', style: 'margin-top:8px;display:none' }, ack, 'I understand this overwrites those records in the panel’s programming.');
+  const resetBox = el('input', { type: 'checkbox', onchange: () => {
+    resetOffer.style.display = resetBox.checked ? 'block' : 'none'; resetOffer.replaceChildren();
+    if (resetBox.checked) resetOffer.append('Resetting deletes whatever is on the panel that is not in this account, and it cannot be undone. Make a backup of the panel first? ', el('button', { type: 'button', onclick: () => bkNow.click() }, 'Back up panel now'), ' (a backup is also made automatically just before every send; this one you can name and keep.)');
+  } });
+  const resetOffer = el('div', { class: 'hint', style: 'display:none;color:var(--warn);margin:4px 0 0 24px' });
+  const resetRow = el('label', { class: 'cb', style: 'margin-top:8px;align-items:flex-start' }, resetBox, el('span', {}, 'Also reset records on the panel that are not in this file to factory defaults (zones, users 2+, areas 2+, keypads 2+, telephones, report codes). Use this to make the panel match a smaller account; users, zones and so on that exist only on the panel will be cleared.'));
+  const req = () => {
+    PANEL = { host: host.value.trim(), port: +port.value, plain: mode.value === 'plain', tls: mode.value === 'tls', serial: serial.value.trim().toUpperCase(), mac: mac.value.trim(), code: code.value };
+    try { localStorage.setItem('elkpanel', JSON.stringify(PANEL)); } catch (e) { }
+    return { host: PANEL.host, port: PANEL.port, code: code.value, plain: PANEL.plain, tls: PANEL.tls, serial: PANEL.serial || null, mac: PANEL.mac || null, passphrase: pass.value, model: MODEL ? modelBody() : null, resetMissing: resetBox.checked, sendLocalCode: false };
+  };
+  // progress while the panel is being read or written: the server counts every record transferred (/api/panel/progress) and the bar follows it
+  let progTimer = null;
+  const stopProg = keep => { clearInterval(progTimer); progTimer = null; if (!keep) status.textContent = ''; };
+  const startProg = msg => {
+    stopProg(true);
+    const txt = el('div', {}, msg || ''), bar = el('progress', { max: 100, style: 'width:100%;max-width:520px;height:10px;display:block;margin:4px 0' }), note = el('div', { class: 'hint', style: 'margin:0' });
+    status.replaceChildren(txt, bar, note);
+    const tick = async () => {
+      try {
+        const p = await (await fetch('/api/panel/progress')).json(); if (!p.active) return;
+        const pct = p.total > 0 ? Math.min(100, Math.round(100 * p.done / p.total)) : null;
+        txt.textContent = p.phase + (p.total > 0 ? ' — ' + p.done + ' of ' + p.total + ' (' + pct + '%)' : p.done ? ' — ' + p.done + ' done' : '') + ' · ' + Math.round(p.seconds) + ' s';
+        if (pct == null) bar.removeAttribute('value'); else bar.value = pct;
+        note.textContent = p.note || '';
+      } catch (e) { }
+    };
+    tick(); progTimer = setInterval(tick, 400);
+  };
+  const busy = (on, msg) => { cmpBtn.disabled = on || !MODEL; sendBtn.disabled = on || !ack.checked || !sendBtn.dataset.ready; if (on) startProg(msg); else stopProg(); };
+  const show = (r, sent) => {
+    const rows = r.counts.map(c => el('tr', {}, el('td', {}, c.label), el('td', {}, c.same), el('td', {}, c.differ ? el('b', {}, c.differ) : 0)));
+    const total = r.changes.length;
+    out.replaceChildren(...[
+      el('div', { class: 'hint' }, `Panel firmware ${r.firmware || '?'}, serial ${r.serial || '?'}.`),
+      sent ? el('div', { class: total ? 'err' : 'ok', style: 'display:block;margin:8px 0' }, `Wrote ${r.written} record(s). Read back afterwards: ${total ? total + ' still differ (listed below).' : 'the panel now matches this file in every section.'}`) : null,
+      sent && r.backupPath ? el('div', { class: 'hint' }, 'A backup of the panel was saved before writing: ' + r.backupPath + ' (restore it below).') : null,
+      el('table', {}, el('thead', {}, el('tr', {}, el('th', {}, 'Section'), el('th', {}, 'Already match'), el('th', {}, sent ? 'Still differ' : 'Would change'))), el('tbody', {}, rows)),
+      total ? el('details', {}, el('summary', {}, `Records that differ (${total})`), el('pre', { class: 'log' }, r.changes.map(c => `${c.label} ${c.number}`).join('\n'))) : null,
+      r.skipped.length ? el('div', { class: 'hint' }, 'Not on the panel, skipped: ' + r.skipped.join(', ')) : null,
+      el('div', { class: 'hint' }, 'Globals and dawn/dusk are not sent. Only records that are in this file are compared.')].filter(Boolean));
+    sendBtn.dataset.ready = total && !sent ? '1' : ''; ack.checked = false; ackRow.style.display = total && !sent ? 'flex' : 'none';
+    sendBtn.textContent = total && !sent ? `Send ${total} record(s) to panel` : 'Send to panel'; sendBtn.disabled = true;
+  };
+  const call = async (url, sent) => {
+    if (!host.value.trim() || !code.value) { status.textContent = 'Enter the panel address (and the RP access code under Advanced).'; return; }
+    busy(true, 'Connecting to the panel… this can take up to 30 seconds (it retries while the panel releases an old session).'); out.replaceChildren();
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(req()) });
+      if (!r.ok) { busy(false, ''); out.replaceChildren(el('div', { class: 'err', style: 'display:block;margin:8px 0' }, await r.text())); return; }
+      busy(false, ''); show(await r.json(), sent);
+    } catch (e) { busy(false, ''); out.replaceChildren(el('div', { class: 'err', style: 'display:block;margin:8px 0' }, String(e))); }
+  };
+  cmpBtn.onclick = () => call('/api/panel/compare', false);
+  if (!MODEL) { cmpBtn.disabled = true; cmpBtn.title = 'Open or create an account first'; }
+  // Read the panel into the editor (replaces the editor contents, like ElkRP's Receive from Control). Needs a second click to confirm.
+  const pullBtn = el('button', { title: 'Load the panel’s current programming into this editor' }, 'Read panel into editor'); let armed = false;
+  pullBtn.onclick = async () => {
+    if (!armed) { armed = true; pullBtn.textContent = (DIRTY ? 'You have unsaved changes. ' : '') + 'Click again to replace the editor contents with the panel’s'; return; }
+    armed = false; pullBtn.textContent = 'Read panel into editor';
+    if (!host.value.trim() || !code.value) { status.textContent = 'Enter the panel address (and the RP access code under Advanced).'; return; }
+    busy(true, 'Reading the panel… about 30 seconds.'); out.replaceChildren(); pullBtn.disabled = true;
+    try {
+      const r = await fetch('/api/panel/pull', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...req(), model: null }) });
+      busy(false, ''); pullBtn.disabled = false;
+      if (!r.ok) { out.replaceChildren(el('div', { class: 'err', style: 'display:block;margin:8px 0' }, await r.text())); return; }
+      const d = await r.json(); load(d); setDirty(true); closeModal();
+      showOk('Read from the panel (firmware ' + (d.firmware || '?') + '). ' + d.notes.join('. ') + '. Save to keep a copy, or edit and use Panel… > Send.');
+    } catch (e) { busy(false, ''); pullBtn.disabled = false; out.replaceChildren(el('div', { class: 'err', style: 'display:block;margin:8px 0' }, String(e))); }
+  };
+  ack.onchange = () => { sendBtn.disabled = !(ack.checked && sendBtn.dataset.ready); };
+  sendBtn.onclick = () => { if (ack.checked) call('/api/panel/send', true); };
+  // ---- backups: full copy of the panel kept on disk; Send makes one automatically before writing
+  const conn = () => { req(); return { host: PANEL.host, port: PANEL.port, code: code.value, plain: PANEL.plain, tls: PANEL.tls, serial: PANEL.serial || null, mac: PANEL.mac || null, passphrase: pass.value }; };
+  const bkSel = el('select', { style: 'max-width:420px' }), bkOut = el('div'), bkAck = el('input', { type: 'checkbox' });
+  const bkNow = el('button', {}, 'Back up panel now'), bkCheck = el('button', {}, 'Check restore'), bkDo = el('button', { class: 'primary', disabled: true }, 'Restore panel from this backup');
+  const bkAckRow = el('label', { class: 'cb', style: 'margin-top:6px;display:none' }, bkAck, 'I understand this overwrites the panel’s programming with the backup.');
+  const loadBackups = async () => {
+    try { const l = await (await fetch('/api/panel/backups')).json(); bkSel.replaceChildren(...(l.length ? l.map(b => el('option', { value: b.name }, b.when + '  ' + b.name + ' (' + b.kb + ' KB)')) : [el('option', { value: '' }, '(no backups yet)')])); } catch (e) { }
+  };
+  const bkCall = async (url, body, working) => {
+    if (!host.value.trim() || !code.value) { status.textContent = 'Enter the panel address (and the RP access code under Advanced).'; return null; }
+    startProg(working); bkNow.disabled = bkCheck.disabled = bkDo.disabled = true; bkOut.replaceChildren();
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      stopProg(); bkNow.disabled = bkCheck.disabled = false;
+      if (!r.ok) { bkOut.replaceChildren(el('div', { class: 'err', style: 'display:block;margin:8px 0' }, await r.text())); return null; }
+      return await r.json();
+    } catch (e) { stopProg(); bkNow.disabled = bkCheck.disabled = false; bkOut.replaceChildren(el('div', { class: 'err', style: 'display:block;margin:8px 0' }, String(e))); return null; }
+  };
+  bkNow.onclick = async () => { const d = await bkCall('/api/panel/backup', conn(), 'Reading the whole panel… about 30 seconds.'); if (d) { bkOut.replaceChildren(el('div', { class: 'ok', style: 'display:block;margin:8px 0' }, 'Backup saved: ' + d.path)); loadBackups(); } };
+  bkCheck.onclick = async () => {
+    if (!bkSel.value) { status.textContent = 'There is no backup to restore yet.'; return; }
+    const d = await bkCall('/api/panel/restore', { ...conn(), file: bkSel.value, apply: false }, 'Comparing the panel with the backup… about 30 seconds.'); if (!d) return;
+    bkOut.replaceChildren(el('div', { class: 'hint' }, d.differ ? d.differ + ' record(s) differ from this backup (' + (d.backupSerial || '?') + ', firmware ' + (d.backupFirmware || '?') + ').' : 'The panel already matches this backup.'),
+      d.differ ? el('details', {}, el('summary', {}, 'Records that would be restored'), el('pre', { class: 'log' }, d.changes.join('\n'))) : null);
+    bkAck.checked = false; bkAckRow.style.display = d.differ ? 'flex' : 'none'; bkDo.dataset.ready = d.differ ? '1' : ''; bkDo.disabled = true;
+  };
+  bkAck.onchange = () => { bkDo.disabled = !(bkAck.checked && bkDo.dataset.ready); };
+  bkDo.onclick = async () => {
+    if (!bkAck.checked) return;
+    const d = await bkCall('/api/panel/restore', { ...conn(), file: bkSel.value, apply: true }, 'Restoring… about a minute.'); if (!d) return;
+    bkAckRow.style.display = 'none'; bkDo.disabled = true; bkDo.dataset.ready = '';
+    bkOut.replaceChildren(el('div', { class: d.remaining ? 'err' : 'ok', style: 'display:block;margin:8px 0' }, 'Restored ' + d.written + ' record(s). Read back afterwards: ' + (d.remaining ? d.remaining + ' still differ.' : 'the panel matches the backup.')));
+  };
+  loadBackups();
+  const bkBox = el('details', { style: 'margin-top:12px' }, el('summary', {}, 'Backups and restore'),
+    el('div', { class: 'hint' }, 'Send saves a full backup of the panel automatically before it writes anything (in the folder “ElkEditor backups” inside your Documents folder). You can also make one any time, and restore the panel from any saved backup.'),
+    el('div', { class: 'row' }, bkNow, el('label', {}, 'Saved backups', bkSel), bkCheck, bkDo), bkAckRow, bkOut);
+
+  box.append(el('h2', {}, 'Panel'),
+    el('div', { class: 'hint' }, 'Read panel loads its current programming into the editor. Compare shows what would change and writes nothing. Send writes only the records that differ, then reads the panel back to confirm. Keep a backup export of the panel first; the RP code is not stored.'),
+    el('div', { class: 'row' }, el('label', {}, 'Panel (M1XEP) address', host), el('label', {}, 'Port', port), el('label', {}, 'Connection', mode)), secureRow, tlsRow,
+    el('details', {}, el('summary', {}, 'Advanced'), el('div', { class: 'row' }, el('label', {}, 'RP access code (factory default 246801)', code)), resetRow, resetOffer),
+    el('div', { class: 'row', style: 'margin-top:10px' }, pullBtn, cmpBtn, sendBtn, el('button', { onclick: closeModal, style: 'margin-left:auto' }, 'Close')), ackRow, status, out, bkBox);
+  $('#modal').style.display = 'flex'; host.focus();
+};
+$('#modal').addEventListener('mousedown', e => { if (e.target === $('#modal')) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+{ const TH = ['auto', 'light', 'dark'], tb = $('#themeBtn'); tb.textContent = 'Theme: ' + window.__theme();
+  tb.onclick = () => { const n = TH[(TH.indexOf(window.__theme()) + 1) % 3]; window.__setTheme(n); tb.textContent = 'Theme: ' + n; }; }
+$('#newBtn').onclick = async () => { const r = await fetch('/api/new', { method: 'POST' }); if (!r.ok) { showErr(await r.text()); return; } load(await r.json()); showOk('A blank M1G account. Edit it, then Save an export for ElkRP or send it to a panel with Panel…'); };
+$('#pullBtn').onclick = () => $('#panelBtn').click();
+$('#busBtn').onclick = async () => { await $('#newBtn').onclick(); TAB = 'databus'; render(); showOk(''); };
+$('#openBtn').onclick = () => NATIVE ? window.external.sendMessage(JSON.stringify({ cmd: 'openFile' })) : $('#fileIn').click();
+$('#fileIn').onchange = e => e.target.files[0] && openFile(e.target.files[0]);
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files[0]) openFile(e.dataTransfer.files[0]); });
+function modelBody() { const body = JSON.parse(JSON.stringify(MODEL)); body.zones.forEach(z => delete z.isNew); return body; }
+$('#saveBtn').onclick = async () => {
+  showErr(''); showOk('');
+  const r = await fetch('/api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(modelBody()) });
+  if (!r.ok) { showErr(await r.text()); return; }
+  const blob = await r.blob(), base = FILE.replace(/\.[^.]*$/, '');
+  if (NATIVE) { window.external.sendMessage(JSON.stringify({ cmd: 'saveFile', name: base + ' (edited)', b64: toB64(await blob.arrayBuffer()) })); return; }   // the host shows the Save dialog and replies 'saved'
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = base + ' (edited)'; a.click();
+  try { localStorage.removeItem('elkdraft:' + FILE); } catch (e) { }
+  setDirty(false);
+  showOk('Saved. In ElkRP use File > Import Account and pick the downloaded file.');
+};
+(async () => {
+  META = await (await fetch('/api/meta')).json(); const r = await fetch('/api/model'); if (r.status === 200) load(await r.json());
+  const ex = (location.hash.match(/example=([a-z]+)/) || [])[1];                  // a link such as #example=dbh opens the data bus planner with that example
+  if (ex && BUS_EXAMPLES[ex]) { await $('#newBtn').onclick(); BUS.plan = { runs: BUS_EXAMPLES[ex]() }; TAB = 'databus'; render(); showOk(''); }
+})();
+</script>
+</body>
+</html>

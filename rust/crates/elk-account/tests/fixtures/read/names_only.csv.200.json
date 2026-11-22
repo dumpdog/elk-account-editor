@@ -1,0 +1,1 @@
+{"rows":[{"n":1,"name":"Front Door","definition":null,"type":null,"area":null},{"n":2,"name":"Back Door","definition":null,"type":null,"area":null},{"n":3,"name":"Kitchen Window","definition":null,"type":null,"area":null}],"columns":["Name"],"warnings":["There is no Zone column, so the names are applied to zones 1, 2, 3 \u2026 in row order."]}

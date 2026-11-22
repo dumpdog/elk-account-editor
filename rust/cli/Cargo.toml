@@ -1,0 +1,28 @@
+[package]
+name = "elk-cli"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Elk M1G command line helpers: offline account file tools and live panel commands (Rust port of Elk.Cli)"
+
+[lib]
+name = "elk_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "elk"
+path = "src/main.rs"
+
+[dependencies]
+elk-core = { path = "../crates/elk-core" }
+elk-account = { path = "../crates/elk-account" }
+elk-panel = { path = "../crates/elk-panel" }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+
+[workspace]
+

@@ -1,0 +1,9 @@
+Zone,Name,Definition,Type,Area,Attributes
+1,Front Door,1,0,1,Bypassable|Enable Chime
+2,Garage Door,1,0,1,Bypassable
+3,Living Rm Motion,3,0,1,Bypassable|Fast loop response
+4,Kitchen Window,2,0,1,Bypassable
+5,Back Door,1,0,2,Bypassable|Enable Chime
+6,Basement Smoke,16,0,1,Silent alarm
+17,Garage Smoke,16,0,1,Listen in
+186,Shed Glassbreak,4,5,3,Bypassable|Swinger shutdown

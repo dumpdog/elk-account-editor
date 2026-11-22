@@ -1,0 +1,13 @@
+[request]
+method = "POST"
+path = "/api/zones/read?name=e.csv"
+body = ""
+
+[request.headers]
+Content-Type = "text/csv"
+
+[response]
+status = 200
+
+[response.headers]
+content-type = "application/json; charset=utf-8"

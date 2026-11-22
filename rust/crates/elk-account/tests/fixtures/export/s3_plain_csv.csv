@@ -1,0 +1,33 @@
+﻿Zone,Name,Definition,Type,Area
+1,Front Door,Burglar Entry/Exit 1,EOL Hardwire / Wireless,Area 1
+2,Garage Door,Burglar Entry/Exit 1,EOL Hardwire / Wireless,Area 1
+3,Living Rm Motion,Burglar Perimeter Instant,EOL Hardwire / Wireless,Area 1
+4,Kitchen Window,Burglar Entry/Exit 2,EOL Hardwire / Wireless,Area 1
+5,Back Door,Burglar Entry/Exit 1,EOL Hardwire / Wireless,Area 2
+6,Basement Smoke,Non-alarm,EOL Hardwire / Wireless,Area 1
+7,Dining Room Wnds,Burglar Perimeter Instant,EOL Hardwire / Wireless,Area 1
+8,Den Windows,Burglar Perimeter Instant,EOL Hardwire / Wireless,Area 1
+9,Family Room Wnds,Burglar Perimeter Instant,EOL Hardwire / Wireless,Area 1
+10,Kitchen Wnds,Burglar Perimeter Instant,EOL Hardwire / Wireless,Area 1
+11,Basement Door,Burglar Perimeter Instant,EOL Hardwire / Wireless,Area 1
+12,Master Bdrm Wnds,Burglar Perimeter Instant,EOL Hardwire / Wireless,Area 1
+13,2nd Fl Windows,Burglar Perimeter Instant,EOL Hardwire / Wireless,Area 1
+14,Attic Door,Burglar Perimeter Instant,EOL Hardwire / Wireless,Area 1
+15,Carbon Monoxide,Carbon Monoxide,EOL Hardwire / Wireless,Area 1
+16,Fire & Smoke,Fire Alarm,Fire / 4-Wire Smoke,Area 1
+17,Garage Smoke,Non-alarm,EOL Hardwire / Wireless,Area 1
+18,Johnny's Motion,Burglar Interior,EOL Hardwire / Wireless,Area 1
+19,Sally's Room,Burglar Perimeter Instant,EOL Hardwire / Wireless,Area 1
+20,Sally's Motion,Burglar Interior,EOL Hardwire / Wireless,Area 1
+21,Shed Door,Burglar Perimeter Instant,EOL Hardwire / Wireless,Area 1
+22,Shed East Window,Burglar Perimeter Instant,EOL Hardwire / Wireless,Area 1
+23,Shed West Window,Burglar Perimeter Instant,EOL Hardwire / Wireless,Area 1
+30,Mr. Smith's Fob,Keyfob,EOL Hardwire / Wireless,Area 1
+31,Mrs. Smith's Fob,Keyfob,EOL Hardwire / Wireless,Area 1
+32,Johnny's Fob,Keyfob,EOL Hardwire / Wireless,Area 1
+33,Foyer Smoke,Fire Alarm,Fire / 4-Wire Smoke,Area 1
+34,Upstairs Smoke 1,Fire Alarm,Fire / 4-Wire Smoke,Area 1
+35,Upstairs Smoke 2,Fire Alarm,Fire / 4-Wire Smoke,Area 1
+161,Garage Overhead,Burglar Entry/Exit 2,EOL Hardwire / Wireless,Area 1
+162,Garage Smoke,Fire Alarm,Fire / 4-Wire Smoke,Area 1
+186,Shed Glassbreak,Burglar Interior,Fire / 4-Wire Smoke,Area 3

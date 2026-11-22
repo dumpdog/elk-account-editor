@@ -1,0 +1,372 @@
+diff --git a/rust/app/assets/index.html b/rust/app/assets/index.html
+index a46dd1b..95ec93b 100644
+--- a/rust/app/assets/index.html
++++ b/rust/app/assets/index.html
+@@ -33,6 +33,7 @@
+   nav button .dot { display:inline-block; width:9px; height:9px; margin-right:7px; border-radius:50%; background:var(--mute); opacity:.55; vertical-align:middle; }
+   nav button .dot.up { background:var(--good); opacity:1; box-shadow:0 0 0 3px var(--good-line); }
+   nav button .badge.w { background:var(--warn-bg); color:var(--warn-ink); }
++  #subtabs { padding-top:3px; } #subtabs button { font-size:12px; padding:3px 10px; } #subtabs button.on { box-shadow:inset 0 -2px 0 var(--acc); } #subtabs button .cnt { margin-left:6px; font-size:11px; opacity:.8; }
+   main { padding:0 16px 40px; }
+   .panel { background:var(--card); border:1px solid var(--line); border-radius:0 8px 8px 8px; padding:14px; }
+   .bar { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:flex-end; margin-bottom:10px; padding:10px; background:var(--bar); border:1px solid var(--bar-line); border-radius:8px; }
+@@ -91,6 +92,9 @@
+   .cbgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:2px 10px; }
+   .issue { display:flex; gap:10px; align-items:center; padding:6px 10px; border-bottom:1px solid var(--row); }
+   .issue .lv { font-weight:700; width:60px; } .issue.e .lv { color:var(--bad); } .issue.w .lv { color:var(--warn); } .issue.i .lv { color:var(--info); }
++  .dl { display:flex; align-items:center; gap:8px; margin:3px 0; font-size:13px; } .dl > span:first-child { flex:none; width:170px; text-align:right; color:var(--mute); font-size:12px; }
++  .dl input[type=text], .dl input[type=password], .dl input[type=date] { flex:1; min-width:110px; max-width:340px; padding:3px 6px; border:1px solid var(--line); border-radius:5px; font:inherit; background:var(--card); color:inherit; }
++  .dl input[readonly] { background:var(--inset); color:var(--mute); }
+   .stat { display:inline-block; padding:6px 12px; margin:0 8px 8px 0; background:var(--soft); border:1px solid var(--line); border-radius:8px; } .stat b { font-size:18px; display:block; }
+   kbd { background:var(--row); border:1px solid var(--line); border-radius:4px; padding:0 4px; font-size:11px; }
+   .subnav { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:10px; } .subnav button.on { background:var(--acc); color:#fff; border-color:var(--acc); } .subnav .cnt { margin-left:6px; font-size:11px; opacity:.8; }
+@@ -137,6 +141,7 @@
+   </div></div></div>
+ <div id="app" hidden>
+   <nav id="tabs"></nav>
++  <nav id="subtabs" style="display:none"></nav>
+   <main><div class="panel" id="panel"></div></main>
+ </div>
+ <div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
+@@ -144,6 +149,9 @@
+ <script>
+ let META, MODEL, TAB = 'overview', SEL = new Set(), FILE = '';
+ const $ = (s, el = document) => el.querySelector(s);
++// Element.append(null) writes the text "null" (the Zones tab showed it when no import note was set). Every append in this page
++// goes through here, so a null/undefined/false child is skipped instead of being written as text.
++(function () { const app = Element.prototype.append; Element.prototype.append = function (...kids) { return app.apply(this, kids.filter(k => k != null && k !== false)); }; })();
+ const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'class') e.className = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids.flat()) if (c != null) e.append(c.nodeType ? c : document.createTextNode(c)); return e; };
+ function showErr(t) { const m = $('#msg'); m.textContent = t; m.style.display = t ? 'block' : 'none'; if (t) $('#okmsg').style.display = 'none'; }
+ function showOk(t) { const m = $('#okmsg'); m.textContent = t; m.style.display = t ? 'block' : 'none'; if (t) $('#msg').style.display = 'none'; }
+@@ -233,9 +241,10 @@ function changeGroups(a, b) {
+         if (COMMNAME[sub] && Array.isArray(sx) && Array.isArray(sy)) {
+           const mx = new Map(sx.map(e => [e.n, e])), my = new Map(sy.map(e => [e.n, e]));
+           for (const n of [...new Set([...mx.keys(), ...my.keys()])].sort((p, q) => p - q)) if (!same(mx.get(n), my.get(n))) add(COMMNAME[sub] + ' ' + n, 'report codes');
+-        } else add('System events', sub === 'system' ? 'system report codes' : nice(sub));
++        } else add('Communicator', sub === 'system' ? 'system report codes' : nice(sub));
+       }
+     }
++    else if (k === 'details') { for (const f of keys(x, y)) if (!same((x || {})[f], (y || {})[f])) add('Account details', nice(f)); }
+     else add('Account', nice(k));
+   }
+   return groups;
+@@ -643,42 +652,95 @@ async function liveControl(body) {
+   } catch (e) { showErr(String(e.message || e)); }
+ }
+ async function liveDisconnect() { LIVE.gen++; LIVE.busy = false; clearTimeout(LIVE.timer); try { await fetch('/api/live/disconnect', { method: 'POST' }); } catch (e) { } LIVE.on = false; LIVE.snap = null; LIVE.err = ''; render(); }
+-function paintLive() {
++// The status view is painted once and then updated in place: every 2 s poll only rewrites the text and colour of the existing
++// area cards and zone rows (matched by area / zone number). A full rebuild happens only when the set of things shown changes
++// (connect, disconnect, "Show every zone", Force arm, an area going into or out of alarm, a zone appearing); it keeps the page
++// and the zone list's own scroll position, and it waits while a text box or list in the view has focus or the pointer is down.
++const LV = { sig: '', refs: null, ptr: false, wait: false };
++['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, () => { LV.ptr = false; if (LV.wait) paintLive(); }, true));
++document.addEventListener('pointerdown', e => { if (e.target.closest && e.target.closest('#livebox')) LV.ptr = Date.now(); }, true);
++document.addEventListener('focusout', () => setTimeout(() => { if (LV.wait) paintLive(); }, 0));
++const liveStatusLine = () => ({
++  text: LIVE.on ? `Connected to ${LIVE.host}${LIVE.firmware ? ' (firmware ' + LIVE.firmware + (LIVE.serial ? ', serial ' + LIVE.serial : '') + ')' : ''}. Updated ${LIVE.at}. Compare, send, read and backup in Panel… use this connection.` : (LIVE.err ? 'Disconnected.' : 'Not connected.'),
++  title: LIVE.on ? '' : (LIVE.err || ''),
++  style: 'display:block;margin:6px 0;' + (LIVE.on ? 'color:var(--good);font-weight:600' : LIVE.err ? 'color:var(--bad);font-weight:600' : '')
++});
++const liveAreaView = a => ({
++  col: a.alarm ? 'var(--bad)' : a.armed ? 'var(--info)' : a.ready ? 'var(--good)' : 'var(--warn)',
++  head: a.alarm ? 'ALARM' : a.armed ? a.armedName : 'Disarmed',
++  ready: a.ready ? (a.readyToForceArm ? 'Ready (violated zones can be force armed)' : 'Ready to arm') : 'Not ready (a zone is open or violated)'
++});
++const liveZoneColor = z => z.state === 'Violated' ? 'var(--bad)' : z.state === 'Trouble' ? 'var(--warn)' : 'var(--good)';
++function paintLive(force) {
+   const box = document.getElementById('livebox'); if (!box || TAB !== 'live' || LIVE.sub !== 'status') return;
+-  const sn = LIVE.snap; const kids = [];
+-  kids.push(el('div', { class: 'hint', title: LIVE.on ? '' : (LIVE.err || ''), style: 'display:block;margin:6px 0;' + (LIVE.on ? 'color:var(--good);font-weight:600' : LIVE.err ? 'color:var(--bad);font-weight:600' : '') },
+-    LIVE.on ? `Connected to ${LIVE.host}${LIVE.firmware ? ' (firmware ' + LIVE.firmware + (LIVE.serial ? ', serial ' + LIVE.serial : '') + ')' : ''}. Updated ${LIVE.at}. Compare, send, read and backup in Panel… use this connection.` : (LIVE.err ? 'Disconnected.' : 'Not connected.')));
++  const sn = LIVE.snap, zdef = new Map((MODEL ? MODEL.zones : []).map(z => [z.n, z]));
++  const abnormal = z => z.state !== 'Normal' || z.bypassed || z.forceArmed;
++  const areaDefs = sn ? (MODEL && MODEL.areas.length ? MODEL.areas : sn.areas.map(a => ({ n: a.area, name: '' }))) : [];
++  const shownAreas = sn ? areaDefs.filter(def => sn.areas.some(x => x.area === def.n)) : [];
++  const rows = sn ? sn.zones.filter(z => LIVE.allZones || (zdef.has(z.zone) && zdef.get(z.zone).definition !== 0) || (!MODEL && abnormal(z))) : [];
++  // what decides the structure of the view; anything else is a value that is updated in place
++  const sig = JSON.stringify([LIVE.on, !!sn, LIVE.force, LIVE.allZones,
++    shownAreas.map(def => [def.n, def.name, sn.areas.find(x => x.area === def.n).alarm ? 1 : 0]), sn ? sn.system : 0,
++    rows.map(z => { const d = zdef.get(z.zone); return [z.zone, d ? d.name : '', d ? d.area : '']; })]);
++  const refs = LV.refs;
++  if (refs && refs.box === box && sig === LV.sig) { liveUpdate(refs, sn, rows, zdef); return; }
++  const ae = document.activeElement;
++  if (!force && ((LV.ptr && Date.now() - LV.ptr < 5000) || (ae && box.contains(ae) && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)))) { LV.wait = true; if (refs && refs.box === box) refs.status.textContent = liveStatusLine().text; return; }
++  LV.wait = false;
++  const winY = window.scrollY, oldWrap = box.querySelector('.tablewrap'), wrapTop = oldWrap ? oldWrap.scrollTop : 0, wrapLeft = oldWrap ? oldWrap.scrollLeft : 0;
++  const nr = { box, areas: new Map(), zones: new Map() }, kids = [];
++  const sl = liveStatusLine();
++  nr.status = el('div', { class: 'hint', title: sl.title, style: sl.style }, sl.text); kids.push(nr.status);
+   if (sn) {
+-    const areaDefs = MODEL && MODEL.areas.length ? MODEL.areas : sn.areas.map(a => ({ n: a.area, name: '' }));
+     kids.push(el('h3', { style: 'margin:12px 0 4px' }, 'Areas'));
+-    kids.push(el('label', { class: 'cb', style: 'margin:0 0 6px' }, el('input', { type: 'checkbox', checked: LIVE.force, onchange: e => { LIVE.force = e.target.checked; paintLive(); } }),
++    kids.push(el('label', { class: 'cb', style: 'margin:0 0 6px' }, el('input', { type: 'checkbox', checked: LIVE.force, onchange: e => { LIVE.force = e.target.checked; paintLive(true); } }),
+       el('span', {}, 'Force arm: arm even when zones are open or violated. The panel bypasses them. Without this, Arm refuses and lists the open zones. The tick clears after one arm.')));
+-    kids.push(el('div', { class: 'cards' }, areaDefs.map(def => {
+-      const a = sn.areas.find(x => x.area === def.n); if (!a) return null;
+-      const col = a.alarm ? 'var(--bad)' : a.armed ? 'var(--info)' : a.ready ? 'var(--good)' : 'var(--warn)';
+-      return el('div', { class: 'card', style: 'border-left:6px solid ' + col },
+-        el('h3', {}, 'Area ' + def.n + (def.name ? ' – ' + def.name : '')),
+-        el('div', { style: 'font-size:18px;font-weight:600;color:' + col }, a.alarm ? 'ALARM' : a.armed ? a.armedName : 'Disarmed'),
+-        el('div', {}, a.ready ? (a.readyToForceArm ? 'Ready (violated zones can be force armed)' : 'Ready to arm') : 'Not ready (a zone is open or violated)'),
++    kids.push(el('div', { class: 'cards' }, shownAreas.map(def => {
++      const a = sn.areas.find(x => x.area === def.n), v = liveAreaView(a);
++      const hd = el('div', { style: 'font-size:18px;font-weight:600;color:' + v.col }, v.head), rd = el('div', {}, v.ready);
++      const card = el('div', { class: 'card', style: 'border-left:6px solid ' + v.col },
++        el('h3', {}, 'Area ' + def.n + (def.name ? ' – ' + def.name : '')), hd, rd,
+         el('div', { class: 'row', style: 'margin-top:8px;gap:4px;flex-wrap:wrap' }, ['Disarm', 'Arm Away', 'Arm Stay', 'Arm Stay Instant', 'Arm Night', 'Arm Night Instant', 'Arm Vacation'].map((t, lv) =>
+           el('button', { class: lv && LIVE.force ? 'danger' : '', title: lv && LIVE.force ? 'Force arm: arms even if zones are open and the panel bypasses them' : '', onclick: () => { const force = !!(lv && LIVE.force); if (force) LIVE.force = false; liveControl({ kind: 'arm', area: def.n, level: lv, force }); } }, lv && LIVE.force ? 'Force ' + t : t)), a.alarm ? armBtn('Silence / reset', () => 'Silence and reset area ' + def.n, () => liveControl({ kind: 'silence', area: def.n })) : null));
++      nr.areas.set(def.n, { card, hd, rd });
++      return card;
+     })));
+     kids.push(el('h3', { style: 'margin:12px 0 4px' }, 'System alarms and troubles'));
+     kids.push(sn.system.length ? el('ul', { style: 'margin:4px 0 4px 18px;color:var(--bad)' }, sn.system.map(t => el('li', {}, t))) : el('div', { class: 'hint' }, 'None.'));
+-    const zdef = new Map((MODEL ? MODEL.zones : []).map(z => [z.n, z]));
+-    const abnormal = z => z.state !== 'Normal' || z.bypassed || z.forceArmed;
+-    const rows = sn.zones.filter(z => LIVE.allZones || (zdef.has(z.zone) && zdef.get(z.zone).definition !== 0) || (!MODEL && abnormal(z)));
+-    const showAll = el('label', { class: 'cb' }, chk(LIVE.allZones, on => { LIVE.allZones = on; paintLive(); }), 'Show every zone (not only defined zones)');
+-    kids.push(el('div', { class: 'bar plain', style: 'margin-top:12px' }, el('b', {}, 'Zones'), el('span', { class: 'hint', style: 'margin:0 0 0 8px' }, `${rows.length} shown, ${sn.zones.filter(z => z.state === 'Violated' && zdef.has(z.zone) && zdef.get(z.zone).definition !== 0).length} violated`), el('span', { style: 'flex:1' }), showAll));
++    const showAll = el('label', { class: 'cb' }, chk(LIVE.allZones, on => { LIVE.allZones = on; paintLive(true); }), 'Show every zone (not only defined zones)');
++    nr.count = el('span', { class: 'hint', style: 'margin:0 0 0 8px' });
++    kids.push(el('div', { class: 'bar plain', style: 'margin-top:12px' }, el('b', {}, 'Zones'), nr.count, el('span', { style: 'flex:1' }), showAll));
+     const head = el('tr', {}, ['Zone', 'Name', 'Area', 'State', 'Bypass', 'Force armed', 'Input', 'Volts'].map(t => el('th', {}, t)));
+     const body = rows.map(z => {
+-      const d = zdef.get(z.zone), col = z.state === 'Violated' ? 'var(--bad)' : z.state === 'Trouble' ? 'var(--warn)' : 'var(--good)';
+-      return el('tr', {}, el('td', {}, z.zone), el('td', {}, d ? d.name : ''), el('td', {}, d ? d.area : ''), el('td', { style: 'font-weight:600;color:' + col }, z.state),
+-        el('td', {}, el('button', { onclick: () => liveControl({ kind: 'bypass', area: d ? d.area : 1, zone: z.zone }) }, z.bypassed ? 'Bypassed – remove' : 'Bypass')), el('td', {}, z.forceArmed ? 'Force armed' : ''), el('td', {}, z.physical), el('td', {}, z.volts.toFixed(1)));
++      const d = zdef.get(z.zone);
++      const r = { st: el('td', {}), btn: el('button', { onclick: () => liveControl({ kind: 'bypass', area: d ? d.area : 1, zone: z.zone }) }), fa: el('td', {}), inp: el('td', {}), vo: el('td', {}) };
++      const tr = el('tr', {}, el('td', {}, z.zone), el('td', {}, d ? d.name : ''), el('td', {}, d ? d.area : ''), r.st, el('td', {}, r.btn), r.fa, r.inp, r.vo);
++      nr.zones.set(z.zone, r); return tr;
+     });
+     kids.push(rows.length ? tbl(head, body) : el('div', { class: 'hint' }, 'No defined zones to show. Open an account file so the zone names appear, or tick “Show every zone”.'));
+   }
+   box.replaceChildren(...kids);
++  liveUpdate(nr, sn, rows, zdef);
++  const wrap = box.querySelector('.tablewrap'); if (wrap) { wrap.scrollTop = wrapTop; wrap.scrollLeft = wrapLeft; }
++  window.scrollTo(0, winY);
++  LV.sig = sig; LV.refs = nr;
++}
++// rewrites the values of the existing elements (no element is created or removed)
++function liveUpdate(refs, sn, rows, zdef) {
++  const sl = liveStatusLine(); refs.status.textContent = sl.text; refs.status.title = sl.title; refs.status.setAttribute('style', sl.style);
++  if (!sn) return;
++  for (const [n, r] of refs.areas) {
++    const a = sn.areas.find(x => x.area === n); if (!a) continue;
++    const v = liveAreaView(a);
++    r.card.style.borderLeft = '6px solid ' + v.col; r.hd.style.color = v.col; r.hd.textContent = v.head; r.rd.textContent = v.ready;
++  }
++  refs.count.textContent = `${rows.length} shown, ${sn.zones.filter(z => z.state === 'Violated' && zdef.has(z.zone) && zdef.get(z.zone).definition !== 0).length} violated`;
++  for (const z of rows) {
++    const r = refs.zones.get(z.zone); if (!r) continue;
++    r.st.textContent = z.state; r.st.style.cssText = 'font-weight:600;color:' + liveZoneColor(z);
++    r.btn.textContent = z.bypassed ? 'Bypassed – remove' : 'Bypass'; r.fa.textContent = z.forceArmed ? 'Force armed' : '';
++    r.inp.textContent = z.physical; r.vo.textContent = z.volts.toFixed(1);
++  }
+ }
+ function liveTab(p) {
+   const host = el('input', { type: 'text', size: 18, value: PANEL.host || LIVE.host, placeholder: '192.168.x.x' });
+@@ -1030,9 +1092,7 @@ function rcChk(c) {
+ function commTab(p) {
+   const C = MODEL.comm;
+   if (!C) { p.append(el('div', { class: 'hint' }, 'No communicator (report code) section was found in this file.')); return; }
+-  const subs = { system: 'System events', areas: 'Area RCs', users: 'User RCs', zones: 'Zone RCs', keypads: 'Keypad panic RCs' };
+-  p.append(el('div', { class: 'hint' }, 'Zone, user, area and keypad reporting can be edited right on the Zones, Users, Areas and Keypads screens. This screen is for system events and for turning one kind of report on or off for everything at once.'));
+-  p.append(el('div', { class: 'bar' }, Object.entries(subs).map(([k, t]) => el('button', { class: k === COMMTAB ? 'primary' : '', onclick: () => { COMMTAB = k; render(); } }, t))));
++  p.append(el('div', { class: 'hint' }, 'Zone, user, area and keypad reporting can be edited right on the Zones, Users, Areas and Keypads screens. This section is for the system events and for turning one kind of report on or off for everything at once.'));
+   p.append(el('div', { class: 'hint' }, 'Tick = the event is reported. New events and opens are sent as 01; restorals and closings as 03 (marked "restore" in the heading). A value already in the file that is not 00/01/03 stays as it is until you change that box.'));
+   const fillBar = cells => {
+     const run = fn => { cells().forEach(fn); render(); };
+@@ -1096,7 +1156,7 @@ function validate() {
+     if (MODEL.comm && z.definition !== 0 && !zoneRc(z.n)) noRc.push(z.n);
+   }
+   const list = a => a.length > 8 ? a.slice(0, 8).join(', ') + ` and ${a.length - 8} more` : a.join(', ');
+-  if (noRc.length) add('w', `${noRc.length} defined zone(s) have no report-code row and will not report: ${list(noRc)}. Tick any Report box on the Zones grid (or use Add rows on System events > Zone RCs).`, 'zones');
++  if (noRc.length) add('w', `${noRc.length} defined zone(s) have no report-code row and will not report: ${list(noRc)}. Tick any Report box on the Zones grid (or use Add rows on Communicator > Zone RCs).`, 'zones');
+   if (unnamed.length) add('i', `${unnamed.length} defined zone(s) still have the default name: ${list(unnamed)}.`, 'zones');
+   // areas / keypads
+   for (const k of MODEL.keypads) if (!areaSet.has(k.area)) add('e', `Keypad ${k.n} (${k.name}) is in area ${k.area}, which is not defined.`, 'keypads');
+@@ -1112,7 +1172,53 @@ function validate() {
+   const wc = wirelessCount(); if (wc > 9) add('w', 'More than 9 wireless zone groups (144 zones) is more than one receiver supports.', 'groups');
+   return out;
+ }
++// ---- OVERVIEW: ElkRP's "Account Details" page, then counts and mistakes worth fixing before the file goes anywhere ------
++// The fields come from the account header record and the lines after it (MODEL.details, see ADR-010). Editable: the ones ElkRP
++// lets you type into. Read only: values ElkRP or the panel fill in. Not in the export file: Changed & Saved, Last Connected,
++// the M1XIP port and the folder's Browse button (this page cannot browse the ElkRP database).
++const DETAIL_MAX = { name: 50, address1: 50, address2: 50, city: 30, state: 3, zip: 10, folder: 100, voice: 20, fax: 20, email: 30, web: 30, notes: 255, systemPhone: 20, systemUrl: 50, port: 5, portC: 5 };
++function accountDetails(p) {
++  const D = MODEL.details;
++  if (!D) { p.append(el('div', { class: 'hint' }, 'The account details lines of this file (name, address, notes, network adapter) were not recognised, so they are not shown. Everything else in the file is unaffected.')); return; }
++  const row = (label, ctl, hint) => el('label', { class: 'dl' }, el('span', {}, label), ctl, hint ? el('span', { class: 'hint', style: 'margin:0' }, hint) : null);
++  const ro = (v, extra) => el('input', { type: 'text', readonly: true, value: v, tabindex: -1, ...(extra || {}) });
++  const field = (key, extra) => {
++    const i = el('input', { type: 'text', maxlength: DETAIL_MAX[key], value: D[key], ...(extra || {}) });
++    i.oninput = () => { if (i.value.includes('"')) { i.value = i.value.replace(/"/g, "'"); showErr('The quote character (") cannot be used in the account details; an apostrophe was typed instead.'); } D[key] = i.value; };
++    return i;
++  };
++  const card = (title, ...kids) => el('div', { class: 'card', style: 'margin-bottom:12px' }, el('h3', {}, title), kids);
++  const na = 'not stored in the export file';
++  const notes = el('textarea', { maxlength: DETAIL_MAX.notes, style: 'min-height:80px;font:inherit' }, D.notes); notes.value = D.notes;
++  notes.oninput = () => { if (notes.value.includes('"')) { notes.value = notes.value.replace(/"/g, "'"); showErr('The quote character (") cannot be used in the account details; an apostrophe was typed instead.'); } D.notes = notes.value; };
++  const dateOk = /^\d{4}-\d\d-\d\d$/.test(D.installed);
++  const installed = dateOk ? el('input', { type: 'date', value: D.installed }) : el('input', { type: 'text', maxlength: 20, value: D.installed });
++  installed.oninput = () => { D.installed = installed.value; };
++  const rp = ro(D.rpCode, { type: 'password' });
++  const showRp = el('button', { type: 'button', onclick: () => { rp.type = rp.type === 'password' ? 'text' : 'password'; showRp.textContent = rp.type === 'password' ? 'Show' : 'Hide'; } }, 'Show');
++  const changeRp = el('button', { type: 'button', title: 'The RP access code is changed on the connected panel (Live > RP access code)', onclick: () => { LIVE.sub = 'code'; TAB = 'live'; render(); } }, 'Change…');
++  const ad = D.networkAdapter, mask = ad === 2 ? 2 : 1;
++  const radio = (v, label) => el('label', { class: 'cb' }, el('input', { type: 'radio', name: 'netad', checked: ad === v, onchange: () => { D.networkAdapter = v; render(); } }), label);
++  const ns = el('input', { type: 'checkbox', checked: (D.nonSecure & mask) !== 0 }); ns.onchange = () => { D.nonSecure = ns.checked ? (D.nonSecure | mask) : (D.nonSecure & ~mask); };
++  const port = ad === 1 ? row('Port(s) to use for connecting', field('portC')) : ad === 0 ? row('Port to use for connecting', field('port', { size: 6, style: 'max-width:80px' })) : row('Port to use for connecting', ro('', { style: 'max-width:80px' }), 'the M1XIP port is ' + na);
++  const left = el('div', {},
++    card('Name and Address', row('Account', ro(MODEL.account)), row('Name', field('name')), row('Address 1', field('address1')), row('Address 2', field('address2')), row('City', field('city')),
++      row('State/Province', field('state', { size: 4, style: 'max-width:60px' })), row('Zip/Post Code', field('zip', { size: 12, style: 'max-width:120px' })), row('Folder', field('folder'))),
++    card('Contact Information', row('Telephone Numbers  Voice', field('voice')), row('Fax', field('fax')), row('Email Address', field('email')), row('Web Page', field('web'))),
++    card('Notes', notes));
++  const right = el('div', {},
++    card('System', row('System Type', ro(MODEL.panelType)), row('Hardware Version', ro(D.hardware)), row('Boot Version', ro(D.boot)), row('Firmware Version', ro(MODEL.software)), row('Voice List Version', ro(D.voiceList)),
++      row('Changed & Saved', ro(''), na), row('Last Connected', ro(''), na), row('Date Installed', installed), row('Serial Number', ro(D.serial)),
++      row('RP Access Code', el('span', { style: 'display:flex;gap:6px;flex:1' }, rp, showRp, changeRp)), row('System Telephone', field('systemPhone'))),
++    card('Network Adapter', el('div', { style: 'display:flex;gap:16px;margin:2px 0 8px 178px' }, radio(0, 'M1XEP'), radio(1, 'C1M1'), radio(2, 'M1XIP')),
++      row('System URL/IP', field('systemUrl')), port,
++      ad === 1 ? null : row('Connect Non-Secure', ns)));
++  p.append(el('h3', { style: 'margin:0 0 8px' }, 'Account Details'), el('div', { class: 'cols2' }, left, right),
++    el('div', { class: 'hint' }, 'Same page as ElkRP’s Account Details. Grey fields are filled in by ElkRP or the panel and are only shown. Quote characters (") cannot be stored in the file.'),
++    el('hr', { style: 'border:0;border-top:1px solid var(--line);margin:14px 0' }));
++}
+ function overviewTab(p) {
++  accountDetails(p);
+   const defined = MODEL.zones.filter(z => z.definition !== 0).length;
+   p.append(el('div', {},
+     [[MODEL.zones.length, 'zones (' + defined + ' defined)'], [MODEL.users.length, 'users'], [MODEL.areas.length, 'areas'], [MODEL.keypads.length, 'keypads'], [MODEL.phones.length, 'telephones'], [wirelessCount() * 16, 'wireless zones']].concat(MODEL.automation ? [[MODEL.automation.rules.length, 'rules'], [MODEL.automation.outputs.filter(o => o.show).length, 'outputs shown'], [MODEL.automation.tasks.filter(o => o.show).length, 'tasks shown'], [MODEL.automation.lights.filter(l => l.name).length, 'lights named']] : [])
+@@ -1366,8 +1472,10 @@ function busPaintResults() {
+ 
+ // ---- AUTOMATION: outputs, tasks, counters, custom values, texts, rules, lights, voice messages (the part of the export after the report codes) --------------------
+ // Layout and labels come from ElkRP's own forms (see docs/ELK-ACCOUNT-EDITOR-HANDOFF.md, "Automation items"). Records are fixed slots: a row is cleared, never removed.
+-const AUTO = { sub: 'outputs', lightsAll: false, q: '' };
+-const AUTO_SUBS = [['outputs', 'Outputs'], ['tasks', 'Tasks'], ['counters', 'Counters'], ['customs', 'Custom values'], ['texts', 'Text strings'], ['rules', 'Rules'], ['lights', 'Lights'], ['voice', 'Voice messages']];
++const AUTO = { sub: 'tasks', lightsAll: false, q: '' };
++// The sub-tabs of the Automation section (the second tab row, see SECTIONS). Order follows ElkRP's folder tree; Sunrise/Sunset is
++// not in the export file, and the thermostat names are on the Counters page.
++const AUTO_SUBS = [['tasks', 'Tasks'], ['lights', 'Lighting'], ['outputs', 'Outputs'], ['voice', 'Voice'], ['customs', 'Custom settings'], ['counters', 'Counters and thermostats'], ['texts', 'Texts'], ['rules', 'Rules']];
+ const wordText = id => id === 0 ? '' : (META.words[id] ?? '#' + id);
+ function parseWord(s) {
+   s = s.trim(); if (!s) return 0;
+@@ -1398,8 +1506,6 @@ const blankNamed = o => { o.name = ''; o.show = false; o.voice = [0, 0, 0, 0, 0,
+ function automationTab(p) {
+   const A = MODEL.automation;
+   if (!A) { p.append(el('div', { class: 'hint' }, 'This file has no automation section (outputs, tasks, rules ...). ElkRP writes it for M1G software 5.x exports; an older export keeps those lines as they are.')); return; }
+-  p.append(el('div', { class: 'subnav' }, AUTO_SUBS.map(([k, t]) => el('button', { class: k === AUTO.sub ? 'on' : '', onclick: () => { AUTO.sub = k; AUTO.q = ''; render(); } }, t,
+-    k === 'texts' ? el('span', { class: 'cnt' }, A.texts.length) : k === 'rules' ? el('span', { class: 'cnt' }, A.rules.length) : null))));
+   ({ outputs: autoNamed, tasks: autoNamed, counters: autoCounters, customs: autoCustoms, texts: autoTexts, rules: autoRules, lights: autoLights, voice: autoVoice })[AUTO.sub](p, A);
+ }
+ 
+@@ -1421,7 +1527,7 @@ function autoNamed(p, A) {
+   fq.oninput = () => { AUTO.q = fq.value; fill(); };
+   fill();
+   p.append(el('div', { class: 'hint' }, isOut
+-      ? 'Output names as the keypads and rules show them. “Show” puts the output in ElkRP’s and the keypads’ lists. The voice words are what the panel says for the output. (The durations of the alarm outputs are under Custom values.) The last column is ElkRP’s own description of what output n is on the control.'
++      ? 'Output names as the keypads and rules show them. “Show” puts the output in ElkRP’s and the keypads’ lists. The voice words are what the panel says for the output. (The durations of the alarm outputs are under Globals > Alarm durations.) The last column is ElkRP’s own description of what output n is on the control.'
+       : 'Tasks are run from keypads, rules and the Elk app. “Show” lists the task on the keypad menu. What a task does is a rule (Rules tab): WHENEVER the task is activated THEN ...'),
+     el('div', { class: 'bar plain' }, el('label', {}, 'Search', fq), count),
+     el('div', { class: 'tablewrap' }, el('table', {}, el('thead', {}, el('tr', {}, ['#', 'Name (16)', 'Show', 'Voice words', '', ''].map(h => el('th', {}, h)))), body)));
+@@ -1435,30 +1541,35 @@ function autoCounters(p, A) {
+     el('div', { class: 'cols2' }, el('div', {}, el('h3', {}, 'Counters'), grid(A.counters, 'Counter')), el('div', {}, el('h3', {}, 'Thermostats'), grid(A.thermostats, 'Thermostat'))));
+ }
+ 
+-// custom values: 12 alarm durations and 20 custom settings
++// custom values: the 12 alarm durations (shown under Globals > Alarm durations) and the 20 custom settings
+ const TYPE_LABELS = ['Number', 'Timer (seconds)', 'Time of day'];
+-function autoCustoms(p, A) {
+-  const dur = A.customs.slice(0, 12), cus = A.customs.slice(12);
+-  const hhmm = v => String((v >> 8) & 255).padStart(2, '0') + ':' + String(v & 255).padStart(2, '0');
+-  const valueCell = c => {
+-    const w = el('span');
+-    const paint = () => {
+-      w.replaceChildren();
+-      if (c.type === 2) { const t = el('input', { type: 'time', value: hhmm(c.value) }); t.oninput = () => { const m = t.value.match(/^(\d\d):(\d\d)/); if (m) c.value = (+m[1] << 8) | +m[2]; }; w.append(t); }
+-      else { const n = el('input', { class: 'n', type: 'number', value: c.value, min: 0, max: 16777215, style: 'width:100px' }); n.oninput = () => { if (n.value !== '' && +n.value >= 0 && +n.value <= 16777215) c.value = +n.value; }; w.append(n); }
+-    };
+-    paint(); return [w, paint];
++const hhmm = v => String((v >> 8) & 255).padStart(2, '0') + ':' + String(v & 255).padStart(2, '0');
++function customValueCell(c) {
++  const w = el('span');
++  const paint = () => {
++    w.replaceChildren();
++    if (c.type === 2) { const t = el('input', { type: 'time', value: hhmm(c.value) }); t.oninput = () => { const m = t.value.match(/^(\d\d):(\d\d)/); if (m) c.value = (+m[1] << 8) | +m[2]; }; w.append(t); }
++    else { const n = el('input', { class: 'n', type: 'number', value: c.value, min: 0, max: 16777215, style: 'width:100px' }); n.oninput = () => { if (n.value !== '' && +n.value >= 0 && +n.value <= 16777215) c.value = +n.value; }; w.append(n); }
+   };
+-  const durRows = dur.map(c => { const [w] = valueCell(c); return el('tr', {}, el('td', {}, c.n), el('td', {}, c.name), el('td', {}, w), el('td', { class: 'hint' }, 'seconds; 65535 = until reset')); });
++  paint(); return [w, paint];
++}
++function autoCustoms(p, A) {
++  const cus = A.customs.slice(12);
+   const cusRows = cus.map(c => {
+-    const [w, paint] = valueCell(c);
++    const [w, paint] = customValueCell(c);
+     return el('tr', {}, el('td', {}, c.n - 12), el('td', {}, text(c.name, v => c.name = v, 'name', 12)),
+       el('td', {}, sel(TYPE_LABELS, c.type, v => { c.type = v; c.value = 0; paint(); }, true)), el('td', {}, w));
+   });
+-  p.append(el('div', { class: 'hint' }, 'Custom values are numbers the panel keeps for rules and the Elk app. The first twelve are the alarm durations (how long each alarm sounds; the names are fixed). Then come the 20 custom settings: a plain number, a timer in seconds or a time of day. Changing a type resets its value to 0.'),
+-    el('div', { class: 'cols2' },
+-      el('div', {}, el('h3', {}, 'Alarm durations'), tbl(el('tr', {}, ['#', 'Alarm', 'Duration', ''].map(h => el('th', {}, h))), durRows)),
+-      el('div', {}, el('h3', {}, 'Custom settings'), tbl(el('tr', {}, ['#', 'Name (12)', 'Type', 'Value'].map(h => el('th', {}, h))), cusRows))));
++  p.append(el('div', { class: 'hint' }, 'Custom settings are numbers the panel keeps for rules and the Elk app: a plain number, a timer in seconds or a time of day. Changing a type resets its value to 0. (The first twelve custom values are the alarm durations, under Globals > Alarm durations.)'),
++    tbl(el('tr', {}, ['#', 'Name (12)', 'Type', 'Value'].map(h => el('th', {}, h))), cusRows));
++}
++// Globals > Alarm durations (ElkRP: Cutoff Timers): custom values 1-12, how long each alarm output sounds
++function cutoffTab(p) {
++  const A = MODEL.automation;
++  if (!A) { p.append(el('div', { class: 'hint' }, 'This file has no automation section, which is where the alarm durations are stored. ElkRP writes it for M1G software 5.x exports.')); return; }
++  const rows = A.customs.slice(0, 12).map(c => { const [w] = customValueCell(c); return el('tr', {}, el('td', {}, c.n), el('td', {}, c.name), el('td', {}, w), el('td', { class: 'hint' }, 'seconds; 65535 = until reset')); });
++  p.append(el('div', { class: 'hint' }, 'How long each kind of alarm sounds (ElkRP calls this page Cutoff Timers). The names are fixed; the duration is in seconds, and 65535 keeps the alarm on until it is reset. These are the first twelve custom values of the account.'),
++    tbl(el('tr', {}, ['#', 'Alarm', 'Duration', ''].map(h => el('th', {}, h))), rows));
+ }
+ 
+ // text strings (up to 79 characters, packed into the rule packets)
+@@ -1530,13 +1641,40 @@ function autoVoice(p, A) {
+     el('div', { class: 'tablewrap' }, el('table', {}, el('thead', {}, el('tr', {}, ['#', 'Group', 'Message', 'Words'].map(h => el('th', {}, h)))), body)));
+ }
+ 
+-const TABS = { overview: ['Overview', overviewTab], zones: ['Zones', zonesTab], groups: ['Wireless zone groups', groupsTab], wireless: ['Wireless devices', wirelessTab], users: ['Users', usersTab], areas: ['Areas', areasTab], keypads: ['Keypads', keypadsTab], databus: ['Data bus', busTab], phones: ['Telephones', phonesTab], globals: ['Globals', globalsTab], automation: ['Automation', automationTab], comm: ['System events', commTab], live: ['Live', liveTab] };
++// ---- TAB LAYOUT --------------------------------------------------------------------------------------------------------
++// Two rows like ElkRP's folder tree: SECTIONS is the main tab bar, a section with `subs` also shows a second row under it.
++// TAB stays the key of the page being shown (TABS below); for Wireless and Globals every sub-tab is a page of its own, for
++// Communicator and Automation the section is one page and the sub-tab is COMMTAB / AUTO.sub.
++const TABS = { overview: ['Overview', overviewTab], users: ['Users', usersTab], areas: ['Areas', areasTab], keypads: ['Keypads', keypadsTab], zones: ['Zones', zonesTab], groups: ['Wireless zone groups', groupsTab], wireless: ['Wireless devices', wirelessTab], databus: ['Data bus', busTab], phones: ['Telephones', phonesTab], globals: ['Globals', globalsTab], cutoff: ['Alarm durations', cutoffTab], comm: ['Communicator', commTab], automation: ['Automation', automationTab], live: ['Live', liveTab] };
++const COMM_SUBS = [['areas', 'Area RCs'], ['users', 'User RCs'], ['zones', 'Zone RCs'], ['system', 'System RCs'], ['keypads', 'Keypad panic RCs']];
++const SECTIONS = [
++  { k: 'overview', t: 'Overview' }, { k: 'users', t: 'Users' }, { k: 'areas', t: 'Areas' }, { k: 'keypads', t: 'Keypads' }, { k: 'zones', t: 'Zones' },
++  { k: 'wireless', t: 'Wireless', pages: true, subs: [['groups', 'Zone groups'], ['wireless', 'Devices']] },
++  { k: 'databus', t: 'Data bus' }, { k: 'phones', t: 'Telephones' },
++  { k: 'globals', t: 'Globals', pages: true, subs: [['globals', 'General'], ['cutoff', 'Alarm durations']] },
++  { k: 'comm', t: 'Communicator', subs: COMM_SUBS, get: () => COMMTAB, set: v => { COMMTAB = v; }, shown: () => !!(MODEL && MODEL.comm) },
++  { k: 'automation', t: 'Automation', subs: AUTO_SUBS, get: () => AUTO.sub, set: v => { AUTO.sub = v; AUTO.q = ''; }, shown: () => !!(MODEL && MODEL.automation),
++    count: k => MODEL && MODEL.automation ? (k === 'texts' ? MODEL.automation.texts.length : k === 'rules' ? MODEL.automation.rules.length : null) : null },
++  { k: 'live', t: 'Live' }];
++const sectionOf = tab => SECTIONS.find(s => s.k === tab || (s.pages && s.subs.some(x => x[0] === tab))) || SECTIONS[0];
++const UIPREF = { wireless: 'groups', globals: 'globals', comm: 'areas', automation: 'tasks' };       // last sub-tab of each section
++try { const sv = JSON.parse(localStorage.getItem('elkui') || '{}'); for (const k of Object.keys(UIPREF)) { const s = SECTIONS.find(x => x.k === k); if (s && sv[k] && s.subs.some(x => x[0] === sv[k])) UIPREF[k] = sv[k]; } } catch (e) { }
++COMMTAB = UIPREF.comm; AUTO.sub = UIPREF.automation;
++function saveUiPref() { try { localStorage.setItem('elkui', JSON.stringify(UIPREF)); } catch (e) { } }
++function openSection(s) { TAB = s.pages ? UIPREF[s.k] : s.k; render(); }
++function openSub(s, k) { if (s.pages) { TAB = k; } else s.set(k); UIPREF[s.k] = k; saveUiPref(); render(); }
+ function render() {
+   track(true);
+   const issues = MODEL ? validate() : [], nE = issues.filter(i => i.lv === 'e').length, nW = issues.filter(i => i.lv === 'w').length;
++  const sec = sectionOf(TAB);
++  if (sec.pages && UIPREF[sec.k] !== TAB) { UIPREF[sec.k] = TAB; saveUiPref(); }       // remembers the last page of Wireless / Globals, however it was reached
+   const nav = $('#tabs');
+-  nav.replaceChildren(...Object.entries(TABS).map(([k, [t]]) => el('button', { class: (k === TAB ? 'on' : '') + (k === 'live' ? ' live' : ''), title: k === 'live' ? (LIVE.on ? 'Connected to the panel' : 'Not connected to the panel') : '', onclick: () => { TAB = k; render(); } }, k === 'live' ? el('span', { class: 'dot' + (LIVE.on ? ' up' : '') }) : null, t,
+-    k === 'overview' && (nE + nW) ? el('span', { class: 'badge' + (nE ? '' : ' w') }, nE + nW) : null)));
++  nav.replaceChildren(...SECTIONS.map(s => el('button', { class: (s === sec ? 'on' : '') + (s.k === 'live' ? ' live' : ''), title: s.k === 'live' ? (LIVE.on ? 'Connected to the panel' : 'Not connected to the panel') : '', onclick: () => openSection(s) }, s.k === 'live' ? el('span', { class: 'dot' + (LIVE.on ? ' up' : '') }) : null, s.t,
++    s.k === 'overview' && (nE + nW) ? el('span', { class: 'badge' + (nE ? '' : ' w') }, nE + nW) : null)));
++  const sub = $('#subtabs'), cur = sec.subs ? (sec.pages ? TAB : sec.get()) : '';
++  sub.replaceChildren(...(sec.subs && (!sec.shown || sec.shown()) ? sec.subs.map(([k, t]) => el('button', { class: k === cur ? 'on' : '', onclick: () => openSub(sec, k) }, t,
++    sec.count && sec.count(k) != null ? el('span', { class: 'cnt' }, sec.count(k)) : null)) : []));
++  sub.style.display = sub.childNodes.length ? 'flex' : 'none';
+   const p = $('#panel'), y = window.scrollY; p.replaceChildren(); TABS[TAB][1](p); window.scrollTo(0, y);
+   setDirty(DIRTY);
+ }

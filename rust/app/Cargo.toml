@@ -1,0 +1,31 @@
+[package]
+name = "elkaccounteditor"
+version = "0.2.0"
+edition = "2024"
+publish = false
+description = "Elk M1G account editor: local web server and native window (Rust port of Elk.Editor)"
+
+[[bin]]
+name = "elkaccounteditor"
+path = "src/main.rs"
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "time", "sync"] }
+elk-account = { path = "../crates/elk-account" }
+elk-panel = { path = "../crates/elk-panel" }
+elk-planner-window = { path = "../crates/elk-planner-window" }
+elk-library = { path = "../crates/elk-library" }
+serde_json = "1"
+ureq = { version = "2.12", default-features = false, features = ["native-tls"] }
+native-tls = "0.2"
+sha2 = "0.10"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+
+[workspace]

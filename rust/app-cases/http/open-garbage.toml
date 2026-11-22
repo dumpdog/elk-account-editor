@@ -1,0 +1,15 @@
+[request]
+method = "POST"
+path = "/api/open?name=bad"
+body = """
+this is not an export file\r
+"""
+
+[request.headers]
+Content-Type = "application/octet-stream"
+
+[response]
+status = 400
+
+[response.headers]
+content-type = "application/json; charset=utf-8"

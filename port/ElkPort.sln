@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{C256EB8F-47B4-4ADA-A06E-B4A19561EF77}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elk.Protocol", "src\Elk.Protocol\Elk.Protocol.csproj", "{2D027EDA-4887-442A-A764-C772238A9E04}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elk.Cli", "src\Elk.Cli\Elk.Cli.csproj", "{3C4D5D22-0FC5-42AB-AC9B-486D1A60B18C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{64F04408-52CC-499A-8BD2-C47FFDC85091}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elk.Tests", "tests\Elk.Tests\Elk.Tests.csproj", "{DE23F663-72CB-4545-8769-06871342295C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elk.Editor", "src\Elk.Editor\Elk.Editor.csproj", "{57486144-C910-483C-8089-DCAF5191A9D7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2D027EDA-4887-442A-A764-C772238A9E04}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2D027EDA-4887-442A-A764-C772238A9E04}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2D027EDA-4887-442A-A764-C772238A9E04}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2D027EDA-4887-442A-A764-C772238A9E04}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3C4D5D22-0FC5-42AB-AC9B-486D1A60B18C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3C4D5D22-0FC5-42AB-AC9B-486D1A60B18C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3C4D5D22-0FC5-42AB-AC9B-486D1A60B18C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3C4D5D22-0FC5-42AB-AC9B-486D1A60B18C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DE23F663-72CB-4545-8769-06871342295C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DE23F663-72CB-4545-8769-06871342295C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DE23F663-72CB-4545-8769-06871342295C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DE23F663-72CB-4545-8769-06871342295C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{57486144-C910-483C-8089-DCAF5191A9D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{57486144-C910-483C-8089-DCAF5191A9D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{57486144-C910-483C-8089-DCAF5191A9D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{57486144-C910-483C-8089-DCAF5191A9D7}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{2D027EDA-4887-442A-A764-C772238A9E04} = {C256EB8F-47B4-4ADA-A06E-B4A19561EF77}
+		{3C4D5D22-0FC5-42AB-AC9B-486D1A60B18C} = {C256EB8F-47B4-4ADA-A06E-B4A19561EF77}
+		{DE23F663-72CB-4545-8769-06871342295C} = {64F04408-52CC-499A-8BD2-C47FFDC85091}
+		{57486144-C910-483C-8089-DCAF5191A9D7} = {C256EB8F-47B4-4ADA-A06E-B4A19561EF77}
+	EndGlobalSection
+EndGlobal

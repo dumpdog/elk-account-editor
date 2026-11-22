@@ -1,0 +1,1 @@
+name='Living Room' function=10 flag1=3 flag2=65 (type 1, area 5) crc=40774

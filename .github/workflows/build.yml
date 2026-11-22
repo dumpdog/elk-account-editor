@@ -1,0 +1,177 @@
+# Rust editor: format, lint, test, release build, recorded-case replay and downloadable zips for Windows and macOS.
+# No secrets are used. The macOS app is ad-hoc signed only (see rust/packaging/README-mac.txt).
+# Runs by hand (Actions tab > Build > Run workflow) and on every push / pull request.
+# Pushing a tag v<version> (the version in rust/app/Cargo.toml, e.g. v0.2.0) also publishes a GitHub Release with the three zips and
+# SHA256SUMS; the editor's "Check for updates" reads that release (ADR-016).
+name: Build
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  # The five Cargo projects are separate (each has its own [workspace] and lock file).
+  CRATES: rust/crates/elk-core rust/crates/elk-account rust/crates/elk-panel rust/crates/elk-planner-window rust/crates/elk-library rust/app rust/cli
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Toolchain
+        run: rustup toolchain install stable --profile minimal -c rustfmt,clippy && rustup default stable
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          workspaces: |
+            rust/crates/elk-core
+            rust/crates/elk-account
+            rust/crates/elk-panel
+            rust/crates/elk-planner-window
+            rust/crates/elk-library
+            rust/app
+            rust/cli
+      - name: Format, lint, test
+        run: |
+          for d in $CRATES; do
+            echo "::group::$d"
+            (cd "$d" && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test)
+            echo "::endgroup::"
+          done
+      - name: Release build
+        run: |
+          (cd rust/app && cargo build --release)
+          (cd rust/cli && cargo build --release)
+      - name: Install rust-anything
+        run: cargo install rust-anything --version 2.1.0 --locked
+      - name: Replay the recorded cases against the built app
+        # --browser --no-open: no window or browser in CI. The replay needs no dotnet (the cases are stored).
+        run: rust-anything app replay . --build "rust/app/target/release/elkaccounteditor.exe --browser --no-open"
+      - name: Package
+        shell: pwsh
+        run: ./rust/packaging/make-win-zip.ps1 -Exe rust/app/target/release/elkaccounteditor.exe -Cli rust/cli/target/release/elk.exe -OutDir dist
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: ElkAccountEditor-win-x64
+          path: dist/ElkAccountEditor-win-x64.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4.6.2
+        if: failure()
+        with:
+          name: replay-report-windows
+          path: rust/app-cases/replay-report.md
+          if-no-files-found: ignore
+
+  macos:
+    # macos-14 is Apple Silicon; the Intel slice is cross-compiled on it for the universal2 build.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Toolchain
+        run: |
+          rustup toolchain install stable --profile minimal -c rustfmt,clippy -t aarch64-apple-darwin,x86_64-apple-darwin
+          rustup default stable
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          workspaces: |
+            rust/crates/elk-core
+            rust/crates/elk-account
+            rust/crates/elk-panel
+            rust/crates/elk-planner-window
+            rust/crates/elk-library
+            rust/app
+            rust/cli
+      - name: Format, lint, test
+        run: |
+          for d in $CRATES; do
+            echo "::group::$d"
+            (cd "$d" && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test)
+            echo "::endgroup::"
+          done
+      - name: Release build (arm64 and x86_64)
+        run: |
+          for t in aarch64-apple-darwin x86_64-apple-darwin; do
+            (cd rust/app && cargo build --release --target $t)
+            (cd rust/cli && cargo build --release --target $t)
+          done
+      - name: Universal binaries
+        run: |
+          mkdir -p dist/universal
+          lipo -create -output dist/universal/elkaccounteditor \
+            rust/app/target/aarch64-apple-darwin/release/elkaccounteditor \
+            rust/app/target/x86_64-apple-darwin/release/elkaccounteditor
+          lipo -create -output dist/universal/elk \
+            rust/cli/target/aarch64-apple-darwin/release/elk \
+            rust/cli/target/x86_64-apple-darwin/release/elk
+          lipo -info dist/universal/elkaccounteditor
+      - name: Install rust-anything
+        run: cargo install rust-anything --version 2.1.0 --locked
+      - name: Replay the recorded cases against the built app
+        run: rust-anything app replay . --build "rust/app/target/aarch64-apple-darwin/release/elkaccounteditor --browser --no-open"
+      - name: Package
+        run: |
+          chmod +x rust/packaging/make-mac-app.sh
+          export APP_VERSION=$(grep -m1 '^version' rust/app/Cargo.toml | cut -d'"' -f2)
+          rust/packaging/make-mac-app.sh rust/app/target/aarch64-apple-darwin/release/elkaccounteditor ElkAccountEditor-mac-arm64 dist
+          rust/packaging/make-mac-app.sh dist/universal/elkaccounteditor ElkAccountEditor-mac-universal2 dist
+          mkdir -p dist/cli
+          cp rust/cli/target/aarch64-apple-darwin/release/elk dist/cli/elk-mac-arm64
+          cp dist/universal/elk dist/cli/elk-mac-universal2
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: ElkAccountEditor-mac-arm64
+          path: dist/ElkAccountEditor-mac-arm64.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: ElkAccountEditor-mac-universal2
+          path: dist/ElkAccountEditor-mac-universal2.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: elk-cli-mac
+          path: dist/cli
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4.6.2
+        if: failure()
+        with:
+          name: replay-report-macos
+          path: rust/app-cases/replay-report.md
+          if-no-files-found: ignore
+
+  release:
+    # Only for a pushed tag v*: collects the three zips from the two jobs above, writes SHA256SUMS and creates the GitHub Release.
+    # Uses the workflow's own GITHUB_TOKEN; no other secret.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: The tag must match the program version
+        run: |
+          v=$(grep -m1 '^version' rust/app/Cargo.toml | cut -d'"' -f2)
+          if [ "${GITHUB_REF_NAME}" != "v$v" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match version $v in rust/app/Cargo.toml" >&2
+            exit 1
+          fi
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          path: artifacts
+      - name: Collect the zips and checksum them
+        run: |
+          mkdir release
+          cp artifacts/ElkAccountEditor-win-x64/ElkAccountEditor-win-x64.zip \
+             artifacts/ElkAccountEditor-mac-arm64/ElkAccountEditor-mac-arm64.zip \
+             artifacts/ElkAccountEditor-mac-universal2/ElkAccountEditor-mac-universal2.zip release/
+          (cd release && sha256sum *.zip > SHA256SUMS && cat SHA256SUMS)
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" release/* --verify-tag \
+            --title "Elk account editor ${GITHUB_REF_NAME#v}" --generate-notes

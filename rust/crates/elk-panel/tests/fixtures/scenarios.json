@@ -1,0 +1,919 @@
+{
+  "_doc": "Golden scenarios, run against the C# editor by regen.ps1 and against the Rust handlers by tests/golden.rs. Each scenario gets a fresh simulated panel (plain mode, access code 246801; setup = elk_panel::testkit::setup) and a fresh editor. Placeholders: @PORT@ = the simulated panel's port, @LASTBACKUP@ = file name of the last backup a response named. Step kinds: open (POST /api/open with the sample), new (POST /api/new), http.",
+  "scenarios": [
+    {
+      "name": "comm_sync",
+      "sample": "Sample Communicator",
+      "setup": "seed",
+      "steps": [
+        {
+          "id": "open",
+          "kind": "open"
+        },
+        {
+          "id": "compare_clean",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "comm_clean"
+        },
+        {
+          "id": "compare_edit",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "comm_edit"
+        },
+        {
+          "id": "progress_idle",
+          "kind": "http",
+          "method": "GET",
+          "path": "/api/panel/progress"
+        },
+        {
+          "id": "compare_edit_reset",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "comm_edit_reset"
+        },
+        {
+          "id": "compare_globals_nolocal",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "comm_edit_globals_nolocal"
+        },
+        {
+          "id": "compare_globals_local",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "comm_edit_globals"
+        },
+        {
+          "id": "send_edit",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/send",
+          "request": "comm_edit",
+          "file": "backupPath"
+        },
+        {
+          "id": "compare_after_send",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "comm_edit"
+        },
+        {
+          "id": "restore_preview",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/restore",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"246801\",\"plain\":true,\"file\":\"@LASTBACKUP@\",\"apply\":false}"
+        },
+        {
+          "id": "restore_apply",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/restore",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"246801\",\"plain\":true,\"file\":\"@LASTBACKUP@\",\"apply\":true}"
+        },
+        {
+          "id": "restore_after",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/restore",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"246801\",\"plain\":true,\"file\":\"@LASTBACKUP@\",\"apply\":false}"
+        },
+        {
+          "id": "backup_manual",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/backup",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"246801\",\"plain\":true}",
+          "file": "path"
+        },
+        {
+          "id": "restore_path_trick",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/restore",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"246801\",\"plain\":true,\"file\":\"..\\\\..\\\\@LASTBACKUP@\",\"apply\":false}"
+        },
+        {
+          "id": "restore_missing",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/restore",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"246801\",\"plain\":true,\"file\":\"nope.json\",\"apply\":false}"
+        },
+        {
+          "id": "restore_blank",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/restore",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"246801\",\"plain\":true,\"file\":\"\",\"apply\":false}"
+        },
+        {
+          "id": "backup_no_host",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/backup",
+          "body": "{\"host\":\" \",\"code\":\"246801\"}"
+        },
+        {
+          "id": "send_globals_local",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/send",
+          "request": "comm_edit_globals",
+          "file": "backupPath"
+        },
+        {
+          "id": "compare_after_globals",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "comm_edit_globals"
+        },
+        {
+          "id": "progress_done",
+          "kind": "http",
+          "method": "GET",
+          "path": "/api/panel/progress"
+        }
+      ]
+    },
+    {
+      "name": "template_reset",
+      "sample": "@template",
+      "setup": "defaults",
+      "steps": [
+        {
+          "id": "new",
+          "kind": "new"
+        },
+        {
+          "id": "compare_plain",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "tmpl_clean"
+        },
+        {
+          "id": "compare_reset",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "tmpl_reset"
+        },
+        {
+          "id": "send_reset",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/send",
+          "request": "tmpl_reset",
+          "file": "backupPath"
+        },
+        {
+          "id": "compare_reset_after",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "tmpl_reset"
+        }
+      ]
+    },
+    {
+      "name": "pull_extras",
+      "sample": "Sample Communicator",
+      "setup": "pull",
+      "steps": [
+        {
+          "id": "open",
+          "kind": "open"
+        },
+        {
+          "id": "pull",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/pull",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"246801\",\"plain\":true}"
+        },
+        {
+          "id": "pull_again",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/pull",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"246801\",\"plain\":true}"
+        },
+        {
+          "id": "pull_no_host",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/pull",
+          "body": "{\"code\":\"246801\"}"
+        },
+        {
+          "id": "pull_wrong_code",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/pull",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"000000\",\"plain\":true}"
+        }
+      ]
+    },
+    {
+      "name": "pull_blank",
+      "sample": "@template",
+      "setup": "defaults",
+      "steps": [
+        {
+          "id": "pull",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/pull",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"246801\",\"plain\":true}"
+        }
+      ]
+    },
+    {
+      "name": "errors",
+      "sample": "Sample Communicator",
+      "setup": "seed",
+      "steps": [
+        {
+          "id": "compare_no_file",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "comm_clean"
+        },
+        {
+          "id": "send_no_file",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/send",
+          "request": "comm_clean"
+        },
+        {
+          "id": "open",
+          "kind": "open"
+        },
+        {
+          "id": "compare_empty_body",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": ""
+        },
+        {
+          "id": "compare_null",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "null"
+        },
+        {
+          "id": "compare_array",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "[]"
+        },
+        {
+          "id": "compare_broken",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{"
+        },
+        {
+          "id": "compare_garbage",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "abc"
+        },
+        {
+          "id": "compare_trailing",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{} x"
+        },
+        {
+          "id": "compare_trailing_comma",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"a\":1,}"
+        },
+        {
+          "id": "compare_trailing_comma_array",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"a\":[1,]}"
+        },
+        {
+          "id": "compare_missing_value",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":}"
+        },
+        {
+          "id": "compare_unterminated_string",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"abc"
+        },
+        {
+          "id": "compare_unterminated_object",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"abc\",\"code\":\"d\""
+        },
+        {
+          "id": "compare_string_root",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "\"str\""
+        },
+        {
+          "id": "compare_number_root",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "5"
+        },
+        {
+          "id": "compare_host_number",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":1,\"code\":\"a\",\"model\":{}}"
+        },
+        {
+          "id": "compare_plain_text",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"h\",\"code\":\"a\",\"plain\":\"yes\",\"model\":{}}"
+        },
+        {
+          "id": "compare_port_float",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"h\",\"code\":\"a\",\"port\":1.5,\"model\":{}}"
+        },
+        {
+          "id": "compare_port_big_number",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"h\",\"code\":\"a\",\"port\":99999999999,\"model\":{}}"
+        },
+        {
+          "id": "compare_port_null",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"h\",\"code\":\"a\",\"port\":null,\"model\":{}}"
+        },
+        {
+          "id": "compare_plain_null",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"h\",\"code\":\"a\",\"plain\":null,\"model\":{}}"
+        },
+        {
+          "id": "compare_first_error_wins",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"plain\":\"yes\",\"host\":1,\"model\":{}}"
+        },
+        {
+          "id": "compare_model_number",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"h\",\"code\":\"a\",\"model\":5}"
+        },
+        {
+          "id": "compare_names_ignore_case",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"HOST\":\"127.0.0.1\",\"Code\":\"246801\",\"MODEL\":{},\"PORT\":\"@PORT@\",\"PLAIN\":true}"
+        },
+        {
+          "id": "compare_port_65536",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"127.0.0.1\",\"code\":\"246801\",\"port\":65536,\"model\":{},\"plain\":true}"
+        },
+        {
+          "id": "compare_port_negative",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"127.0.0.1\",\"code\":\"246801\",\"port\":-1,\"model\":{},\"plain\":true}"
+        },
+        {
+          "id": "compare_port_text",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":\"x\",\"code\":\"1\",\"model\":{}}"
+        },
+        {
+          "id": "compare_no_model",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"246801\",\"plain\":true}"
+        },
+        {
+          "id": "compare_blank_host",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"  \",\"code\":\"246801\",\"model\":{}}"
+        },
+        {
+          "id": "compare_bad_zone",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "comm_bad_zone"
+        },
+        {
+          "id": "compare_wrong_code",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "comm_wrongcode"
+        },
+        {
+          "id": "compare_aes_no_mac",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"246801\",\"plain\":false,\"model\":{}}"
+        },
+        {
+          "id": "compare_tls_no_serial",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"246801\",\"tls\":true,\"model\":{}}"
+        },
+        {
+          "id": "backup_empty_body",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/backup",
+          "body": ""
+        },
+        {
+          "id": "backup_wrong_code",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/backup",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"000000\",\"plain\":true}"
+        },
+        {
+          "id": "restore_empty_body",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/restore",
+          "body": ""
+        },
+        {
+          "id": "restore_file_number",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/restore",
+          "body": "{\"host\":\"h\",\"code\":\"c\",\"file\":5}"
+        },
+        {
+          "id": "backup_host_number",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/backup",
+          "body": "{\"host\":5}"
+        },
+        {
+          "id": "pull_host_number",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/pull",
+          "body": "{\"host\":5}"
+        },
+        {
+          "id": "pull_empty_body",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/pull",
+          "body": ""
+        },
+        {
+          "id": "progress",
+          "kind": "http",
+          "method": "GET",
+          "path": "/api/panel/progress"
+        }
+      ]
+    },
+    {
+      "name": "unreachable",
+      "sample": "Sample Communicator",
+      "setup": "seed",
+      "steps": [
+        {
+          "id": "open",
+          "kind": "open"
+        },
+        {
+          "id": "compare_port1",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "comm_port1"
+        },
+        {
+          "id": "connect_port1",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/connect",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":1,\"code\":\"246801\",\"plain\":true}"
+        },
+        {
+          "id": "status",
+          "kind": "http",
+          "method": "GET",
+          "path": "/api/live/status"
+        }
+      ]
+    },
+    {
+      "name": "live_session",
+      "sample": "Sample Communicator",
+      "setup": "seed",
+      "steps": [
+        {
+          "id": "open",
+          "kind": "open"
+        },
+        {
+          "id": "status_idle",
+          "kind": "http",
+          "method": "GET",
+          "path": "/api/live/status"
+        },
+        {
+          "id": "modules_idle",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/modules",
+          "body": ""
+        },
+        {
+          "id": "enroll_idle",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/enroll",
+          "body": ""
+        },
+        {
+          "id": "time_idle",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/time",
+          "body": ""
+        },
+        {
+          "id": "log_idle",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/log",
+          "body": ""
+        },
+        {
+          "id": "control_idle",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/control",
+          "body": "{\"kind\":\"arm\",\"area\":2,\"level\":1}"
+        },
+        {
+          "id": "control_empty",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/control",
+          "body": ""
+        },
+        {
+          "id": "control_kind_number",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/control",
+          "body": "{\"kind\":5}"
+        },
+        {
+          "id": "control_area_text",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/control",
+          "body": "{\"kind\":\"arm\",\"area\":\"x\"}"
+        },
+        {
+          "id": "control_area_quoted_number",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/control",
+          "body": "{\"kind\":\"arm\",\"area\":\"2\"}"
+        },
+        {
+          "id": "settime_flag_text",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/settime",
+          "body": "{\"useComputerTime\":\"x\"}"
+        },
+        {
+          "id": "settime_time_number",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/settime",
+          "body": "{\"useComputerTime\":false,\"time\":5}"
+        },
+        {
+          "id": "settime_broken",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/settime",
+          "body": "{"
+        },
+        {
+          "id": "accesscode_number",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/accesscode",
+          "body": "{\"newCode\":5}"
+        },
+        {
+          "id": "accesscode_empty",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/accesscode",
+          "body": ""
+        },
+        {
+          "id": "connect_host_number",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/connect",
+          "body": "{\"host\":5}"
+        },
+        {
+          "id": "accesscode_idle",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/accesscode",
+          "body": "{\"newCode\":\"135790\"}"
+        },
+        {
+          "id": "connect_no_host",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/connect",
+          "body": "{\"code\":\"246801\"}"
+        },
+        {
+          "id": "connect_wrong_code",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/connect",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"000000\",\"plain\":true}"
+        },
+        {
+          "id": "connect",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/connect",
+          "body": "{\"host\":\" 127.0.0.1 \",\"port\":@PORT@,\"code\":\" 246801 \",\"plain\":true}"
+        },
+        {
+          "id": "status",
+          "kind": "http",
+          "method": "GET",
+          "path": "/api/live/status"
+        },
+        {
+          "id": "compare_borrowed",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/panel/compare",
+          "request": "comm_edit"
+        },
+        {
+          "id": "control_arm_not_ready",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/control",
+          "body": "{\"kind\":\"arm\",\"area\":1,\"level\":1}"
+        },
+        {
+          "id": "control_arm",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/control",
+          "body": "{\"kind\":\"arm\",\"area\":2,\"level\":2}"
+        },
+        {
+          "id": "control_unknown",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/control",
+          "body": "{\"kind\":\"foo\",\"area\":1}"
+        },
+        {
+          "id": "control_null",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/control",
+          "body": "null"
+        },
+        {
+          "id": "control_bad_area",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/control",
+          "body": "{\"kind\":\"silence\",\"area\":9}"
+        },
+        {
+          "id": "time",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/time",
+          "body": ""
+        },
+        {
+          "id": "settime",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/settime",
+          "body": "{\"useComputerTime\":false,\"time\":\"2026-01-02 03:04:05\"}"
+        },
+        {
+          "id": "settime_iso",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/settime",
+          "body": "{\"useComputerTime\":false,\"time\":\"2026-03-04T05:06\"}"
+        },
+        {
+          "id": "settime_us",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/settime",
+          "body": "{\"useComputerTime\":false,\"time\":\"12/31/2026 11:59:30 PM\"}"
+        },
+        {
+          "id": "settime_bad",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/settime",
+          "body": "{\"useComputerTime\":false,\"time\":\"soon\"}"
+        },
+        {
+          "id": "settime_empty",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/settime",
+          "body": "{}"
+        },
+        {
+          "id": "settime_year",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/settime",
+          "body": "{\"useComputerTime\":false,\"time\":\"1999-01-01 00:00:00\"}"
+        },
+        {
+          "id": "log",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/log",
+          "body": ""
+        },
+        {
+          "id": "log_max",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/log?max=5",
+          "body": ""
+        },
+        {
+          "id": "log_max_bad",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/log?max=zz",
+          "body": ""
+        },
+        {
+          "id": "accesscode_short",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/accesscode",
+          "body": "{\"newCode\":\"12345\"}"
+        },
+        {
+          "id": "accesscode_null",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/accesscode",
+          "body": "null"
+        },
+        {
+          "id": "accesscode",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/accesscode",
+          "body": "{\"newCode\":\"135790\"}"
+        },
+        {
+          "id": "status_after_code",
+          "kind": "http",
+          "method": "GET",
+          "path": "/api/live/status"
+        },
+        {
+          "id": "disconnect",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/disconnect",
+          "body": ""
+        },
+        {
+          "id": "status_after_disconnect",
+          "kind": "http",
+          "method": "GET",
+          "path": "/api/live/status"
+        },
+        {
+          "id": "connect_new_code",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/connect",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"135790\",\"plain\":true}"
+        },
+        {
+          "id": "modules",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/modules",
+          "body": ""
+        },
+        {
+          "id": "status_after_modules",
+          "kind": "http",
+          "method": "GET",
+          "path": "/api/live/status"
+        },
+        {
+          "id": "connect_again",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/connect",
+          "body": "{\"host\":\"127.0.0.1\",\"port\":@PORT@,\"code\":\"135790\",\"plain\":true}"
+        },
+        {
+          "id": "enroll",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/live/enroll",
+          "body": ""
+        },
+        {
+          "id": "status_after_enroll",
+          "kind": "http",
+          "method": "GET",
+          "path": "/api/live/status"
+        }
+      ]
+    }
+  ]
+}

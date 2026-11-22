@@ -1,0 +1,1 @@
+{"runs":[{"run":{"devices":[{"ma":0,"name":"Hall","model":"Keypad","address":1},{"ma":0,"name":"Garage","model":"M1XIN","address":3}],"lengthFt":150,"name":"Bus"},"name":"Bus","kind":"direct"}]}

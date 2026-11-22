@@ -1,0 +1,1 @@
+name='Smith Household' exit1=45 entrance1=30 exit2=60 entrance2=30 flags1=83 flags2=80 armWindow=15 crc=34195
