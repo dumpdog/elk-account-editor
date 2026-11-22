@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 /// Where releases are looked up unless `ELKEDITOR_UPDATE_URL` or `settings.json` says otherwise.
 pub const DEFAULT_URL: &str =
-    "https://api.github.com/repos/dumpdog/elk-account-editor-rust/releases/latest";
+    "https://api.github.com/repos/dumpdog/elk-account-editor/releases/latest";
 const SUMS_NAME: &str = "SHA256SUMS";
 const MAX_FEED: u64 = 2 * 1024 * 1024;
 const MAX_DOWNLOAD: u64 = 300 * 1024 * 1024;

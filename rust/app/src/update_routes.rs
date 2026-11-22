@@ -153,7 +153,7 @@ mod tests {
             .save(&d.join("ElkEditor data"))
             .unwrap();
         assert_eq!(feed_url(&a, None), update::DEFAULT_URL);
-        assert!(update::DEFAULT_URL.contains("dumpdog/elk-account-editor-rust/releases/latest"));
+        assert!(update::DEFAULT_URL.contains("dumpdog/elk-account-editor/releases/latest"));
         let _ = std::fs::remove_dir_all(d);
     }
 

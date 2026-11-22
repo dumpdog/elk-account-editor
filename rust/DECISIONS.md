@@ -152,7 +152,7 @@ Decision:
   collects `ElkAccountEditor-win-x64.zip`, `ElkAccountEditor-mac-arm64.zip` and `ElkAccountEditor-mac-universal2.zip`, writes `SHA256SUMS` (`sha256sum` format) and runs `gh release create` with the workflow's own
   `GITHUB_TOKEN` (`permissions: contents: write`; no other secret). Version 0.2.0 (`rust/app/Cargo.toml`, shown in the page, written into the Mac `Info.plist` through `APP_VERSION`).
 - In the app: `Check for updates` (About / Updates, Library footer, start page) asks `ELKEDITOR_UPDATE_URL`, else `updateUrl` in the data folder's `settings.json`, else
-  `https://api.github.com/repos/dumpdog/elk-account-editor-rust/releases/latest`, compares semantic versions (`v` prefix, pre-releases older than their release), and shows the release notes. Only https is accepted (plain http only to
+  `https://api.github.com/repos/dumpdog/elk-account-editor/releases/latest`, compares semantic versions (`v` prefix, pre-releases older than their release), and shows the release notes. Only https is accepted (plain http only to
   127.0.0.1 / localhost / ::1, for a test server). HTTP client: `ureq` 2 with the platform TLS (`native-tls`, the same stack `elk-core` already uses; no extra C code). A 404 (private repository, no release) answers
   "Could not check for updates: not found (HTTP 404). The repository is probably not public yet, or it has no release."; 403 / 429 say the server refused; network errors give the OS text. The only request is to the feed and its files:
   no telemetry, no background check, no automatic install. The user-agent is `ElkAccountEditor/<version> (update check)`.
